@@ -6,12 +6,15 @@ import 'express-async-errors';
 import { config } from './config/environment';
 import { errorHandler } from './middleware/errorHandler';
 import authRoutes from './routes/auth.routes';
+import paymentsRoutes from './routes/payments.routes';
 
 const app = express();
 
 // Middleware
 app.use(helmet());
 app.use(cors({ origin: config.cors.origin }));
+// Raw body needed here (before express.json()) to verify the K-Pay webhook signature
+app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -34,6 +37,7 @@ app.get('/api/v1', (req, res) => {
 });
 
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/payments', paymentsRoutes);
 
 // 404 handler
 app.use((req, res) => {

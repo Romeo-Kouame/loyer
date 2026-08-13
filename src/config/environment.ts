@@ -34,17 +34,13 @@ export const config = {
     refreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',
   },
   
-  payments: {
-    wave: {
-      apiKey: process.env.WAVE_API_KEY || '',
-      apiUrl: process.env.WAVE_API_URL || 'https://api.sandbox.waveapps.com',
-    },
-    orange: {
-      apiKey: process.env.ORANGE_MONEY_API_KEY || '',
-    },
-    mtn: {
-      apiKey: process.env.MTN_API_KEY || '',
-    },
+  kpay: {
+    apiKey: requireEnv('KPAY_API_KEY'),
+    secretKey: requireEnv('KPAY_SECRET_KEY'),
+    baseUrl: process.env.KPAY_BASE_URL || 'https://admin.kpay.site',
+    // Only needed to verify incoming webhooks; validated lazily so the app
+    // still boots locally before it's configured in the K-Pay dashboard.
+    webhookSecret: process.env.KPAY_WEBHOOK_SECRET || '',
   },
   
   cors: {

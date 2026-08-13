@@ -68,7 +68,7 @@ async function seed(): Promise<void> {
     await pool.query(
       `INSERT INTO "payments" ("tenantId", "propertyId", amount, provider, "transactionId", status)
        VALUES ($1, $2, $3, $4, $5, $6)`,
-      [tenantId, propertyId, 150000, 'wave', 'DEV-SEED-TXN-001', 'confirmed']
+      [tenantId, propertyId, 150000, 'mtn', 'DEV-SEED-TXN-001', 'confirmed']
     );
   }
 
