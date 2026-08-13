@@ -2,6 +2,12 @@
 
 Backend application for the rent management platform.
 
+## Status
+
+This README describes the current, working state of the API. `ARCHITECTURE.md` and `ROADMAP.md`
+describe the broader target design (withdrawals, disputes, audit log, etc.) - treat anything not
+listed under "API Endpoints" below as **not built yet**, regardless of what those files say.
+
 ## Quick Start
 
 ### Prerequisites
@@ -50,18 +56,17 @@ The API will be available at `http://localhost:3000`
 
 ```
 src/
-├── config/          # Configuration files
-├── models/          # TypeORM entities
+├── config/          # Environment loading, pg Pool
 ├── controllers/     # Request handlers
 ├── services/        # Business logic
-├── repositories/    # Database queries
-├── middleware/      # Express middleware
+├── repositories/    # Database queries (plain SQL via pg, no ORM)
+├── middleware/      # Auth, validation, error handling
 ├── routes/          # API routes
-├── utils/           # Helper functions
+├── utils/           # Logger, typed error classes
 └── types/           # TypeScript interfaces
 
-tests/               # Test files
-migrations/          # Database migrations
+tests/               # Jest + Supertest integration tests
+migrations/          # Raw SQL migrations, applied by src/migrations/run.ts
 ```
 
 ## Available Scripts
@@ -82,26 +87,29 @@ migrations/          # Database migrations
 ### Health
 - `GET /health` - Check API status
 
-### Authentication (To be implemented)
-- `POST /api/v1/auth/register` - Register user
+### Authentication
+- `POST /api/v1/auth/register` - Register user (landlord or tenant)
 - `POST /api/v1/auth/login` - Login user
-- `POST /api/v1/auth/refresh` - Refresh token
+- `POST /api/v1/auth/refresh` - Refresh access token
 
-### Properties (To be implemented)
-- `GET /api/v1/properties` - List properties
-- `POST /api/v1/properties` - Create property
-- `GET /api/v1/properties/:id` - Get property details
-- `PUT /api/v1/properties/:id` - Update property
+### Properties
+- `POST /api/v1/properties` - Create property (landlord only)
+- `GET /api/v1/properties` - List the authenticated landlord's own properties
+- `GET /api/v1/properties/:id` - Get property details (owner or admin)
 
-### Payments (To be implemented)
-- `GET /api/v1/payments` - List payments
-- `POST /api/v1/payments/initiate` - Initiate payment
-- `POST /api/v1/webhooks/wave` - Wave webhook
-- `POST /api/v1/webhooks/orange` - Orange Money webhook
+### Payments
+Payments are processed through the [K-Pay](https://kpay.site) aggregator (MTN/Orange Money,
+Côte d'Ivoire only - Wave is not supported by K-Pay). The account is configured in GATEWAY mode:
+the tenant is redirected to a hosted K-Pay page and picks their operator there.
 
-### Withdrawals (To be implemented)
-- `GET /api/v1/withdrawals` - List withdrawals
-- `POST /api/v1/withdrawals` - Request withdrawal
+- `POST /api/v1/payments/initiate` - Create a payment for a property (tenant only), returns a
+  `gatewayUrl` to redirect the tenant to
+- `GET /api/v1/payments/:id` - Get payment status (polls K-Pay live while `pending`)
+- `POST /api/v1/payments/webhook` - K-Pay payment notification (HMAC-SHA256 signed)
+
+### Not implemented yet
+Withdrawals, disputes, audit log, KYC verification flow, and everything else described in
+`ARCHITECTURE.md`/`ROADMAP.md` beyond what's listed above.
 
 ## Documentation
 

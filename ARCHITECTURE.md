@@ -2,6 +2,12 @@
 
 Technical architecture and design decisions.
 
+> **Status:** this document describes the target architecture, including pieces not built yet
+> (withdrawals, disputes, audit log, TypeORM, DataDog/Sentry, SMS 2FA...). See `README.md` for
+> what's actually implemented today. Notable divergences from this doc: no ORM is used (plain SQL
+> via `pg`), payments go through the K-Pay aggregator instead of direct Wave/Orange integrations,
+> and Wave is dropped entirely (not supported by K-Pay).
+
 ## 📐 System Architecture
 
 ```
@@ -42,9 +48,9 @@ Technical architecture and design decisions.
 - **Runtime:** Node.js 20 LTS
 - **Framework:** Express.js 4.18
 - **Language:** TypeScript 5.2
-- **ORM:** TypeORM 0.3
+- **Database access:** plain SQL via `pg` (no ORM - migrations are raw `.sql` files)
 - **Database:** PostgreSQL 15
-- **Cache:** Redis 7
+- **Cache:** Redis 7 (provisioned via Docker Compose, not yet wired into the app)
 
 ### Authentication & Security
 - **JWT:** jsonwebtoken
@@ -52,14 +58,14 @@ Technical architecture and design decisions.
 - **HTTPS:** helmet
 - **CORS:** cors middleware
 - **Rate Limiting:** express-rate-limit
-- **Input Validation:** express-validator + joi
+- **Input Validation:** joi
 
 ### Integrations
-- **Payment APIs:** Axios (HTTP client)
-- **SMS:** Twilio (2FA)
-- **Logging:** Winston
-- **Monitoring:** DataDog (optional)
-- **Error Tracking:** Sentry (optional)
+- **Payment aggregator:** [K-Pay](https://kpay.site) (MTN/Orange Money, Côte d'Ivoire), via Axios
+- **SMS:** Twilio (2FA) - not implemented yet
+- **Logging:** Winston (implemented, console transport only)
+- **Monitoring:** DataDog (not implemented)
+- **Error Tracking:** Sentry (not implemented)
 
 ### Testing
 - **Unit Tests:** Jest
@@ -79,36 +85,28 @@ backend-api/
 │   │
 │   ├── config/
 │   │   ├── environment.ts       # Env variables
-│   │   ├── database.ts          # PostgreSQL connection
-│   │   └── redis.ts             # Redis connection
-│   │
-│   ├── models/                  # TypeORM entities
-│   │   ├── User.ts
-│   │   ├── Property.ts
-│   │   ├── Payment.ts
-│   │   ├── Withdrawal.ts
-│   │   ├── Dispute.ts
-│   │   └── AuditLog.ts
+│   │   ├── database.ts          # PostgreSQL connection (pg Pool)
+│   │   └── redis.ts             # Redis connection - not implemented yet
 │   │
 │   ├── controllers/             # Request handlers
 │   │   ├── auth.controller.ts
-│   │   ├── property.controller.ts
-│   │   ├── payment.controller.ts
-│   │   ├── withdrawal.controller.ts
-│   │   └── admin.controller.ts
+│   │   ├── properties.controller.ts
+│   │   ├── payments.controller.ts
+│   │   ├── withdrawal.controller.ts   # not implemented yet
+│   │   └── admin.controller.ts        # not implemented yet
 │   │
 │   ├── services/                # Business logic
 │   │   ├── auth.service.ts
+│   │   ├── property.service.ts
 │   │   ├── payment.service.ts
-│   │   ├── withdrawal.service.ts
-│   │   ├── email.service.ts
-│   │   └── sms.service.ts
+│   │   ├── withdrawal.service.ts      # not implemented yet
+│   │   ├── email.service.ts           # not implemented yet
+│   │   └── sms.service.ts             # not implemented yet
 │   │
-│   ├── repositories/            # Data access layer
+│   ├── repositories/            # Plain SQL queries via pg (no ORM entities)
 │   │   ├── user.repository.ts
 │   │   ├── property.repository.ts
-│   │   ├── payment.repository.ts
-│   │   └── base.repository.ts
+│   │   └── payment.repository.ts
 │   │
 │   ├── middleware/              # Express middleware
 │   │   ├── auth.middleware.ts
@@ -252,8 +250,11 @@ payments
   tenantId UUID (FK → users)
   propertyId UUID (FK → properties)
   amount DECIMAL(10,2)
-  provider ENUM('wave', 'orange', 'mtn')
-  transactionId VARCHAR(255) UNIQUE
+  provider ENUM('mtn', 'orange') NULLABLE -- Wave dropped: not supported by K-Pay.
+                                           -- Nullable: unknown until the customer picks
+                                           -- an operator on the K-Pay hosted page.
+  transactionId VARCHAR(255) UNIQUE       -- K-Pay's payment id
+  providerReference VARCHAR(255)          -- K-Pay's own reference
   status ENUM('pending', 'confirmed', 'failed', 'disputed')
   webhookReceivedAt TIMESTAMP
   createdAt TIMESTAMP
@@ -352,19 +353,18 @@ Indexes:
    └─ Status: 'pending'
    └─ Stored in database
    
-4. Redirect to payment provider
-   └─ Wave or Orange Money
-   └─ QR code generated
-   └─ User scans QR or clicks link
+4. Redirect to K-Pay hosted checkout
+   └─ Client redirects the tenant to the `gatewayUrl` returned by K-Pay
+   └─ Tenant picks MTN or Orange Money and pays on that page
    
 5. User makes payment
-   └─ Payment provider handles transaction
+   └─ K-Pay handles the transaction with the mobile money operator
    
-6. Payment provider sends webhook
-   POST /api/v1/webhooks/wave
-   └─ Payment status updated to 'confirmed'
-   └─ SMS sent to landlord
-   └─ Email sent to tenant (receipt)
+6. K-Pay sends webhook
+   POST /api/v1/payments/webhook (HMAC-SHA256 signature verified)
+   └─ Payment status updated to 'confirmed', provider backfilled
+   └─ SMS sent to landlord (not implemented yet)
+   └─ Email sent to tenant (receipt) (not implemented yet)
    
 7. Landlord views payment
    GET /api/v1/payments/:id

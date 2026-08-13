@@ -2,6 +2,9 @@
 
 **Welcome!** This is the boilerplate for Plateforme Gestion des Loyers backend.
 
+> This guide reflects what's actually implemented today (auth, properties, K-Pay payments).
+> `ARCHITECTURE.md` and `ROADMAP.md` describe the broader target design - not all of it exists yet.
+
 ## ⚡ Quick Start (5 minutes)
 
 ### 1. Setup Environment
@@ -17,8 +20,9 @@ npm install
 docker-compose up -d
 
 # The following services will start:
-# - PostgreSQL on :5432
-# - Redis on :6379
+# - PostgreSQL on :5433 (not the default 5432, to avoid clashing with a
+#   locally installed Postgres - see docker-compose.yml)
+# - Redis on :6379 (provisioned but not yet used by the app)
 ```
 
 ### 2. Run the Server
@@ -68,18 +72,17 @@ Read these in order:
 
 ```
 src/
-├── config/        # Configuration
-├── models/        # Database entities
+├── config/        # Environment loading, pg Pool
 ├── controllers/   # Handle requests
 ├── services/      # Business logic
-├── repositories/  # Database queries
-├── middleware/    # Auth, logging, etc
+├── repositories/  # Database queries (plain SQL via pg, no ORM)
+├── middleware/    # Auth, validation, error handling
 ├── routes/        # API routes
-├── utils/         # Helpers
+├── utils/         # Logger, typed error classes
 └── types/         # TypeScript types
 
-tests/             # Test files
-migrations/        # Database migrations
+tests/             # Jest + Supertest integration tests
+migrations/        # Raw SQL migrations, applied by src/migrations/run.ts
 ```
 
 ## 💻 Common Commands
@@ -119,14 +122,14 @@ npm run db:migrate
 npm run db:seed
 
 # Check database
-psql postgresql://user:password@localhost:5432/loyers_db
+psql postgresql://user:password@localhost:5433/loyers_db
 ```
 
 ### Connect with GUI
 
 Use DBeaver or pgAdmin:
 - Host: localhost
-- Port: 5432
+- Port: 5433
 - User: user
 - Password: password
 - Database: loyers_db
@@ -173,13 +176,13 @@ curl -X POST http://localhost:3000/api/v1/auth/login \
     "password": "SecurePassword123"
   }'
 
-# Returns: { accessToken, refreshToken, user }
+# Returns: { user, tokens: { accessToken, refreshToken } }
 ```
 
 ### Use Token
 
 ```bash
-curl -X GET http://localhost:3000/api/v1/landlord/dashboard \
+curl -X GET http://localhost:3000/api/v1/properties \
   -H "Authorization: Bearer <accessToken>"
 ```
 
@@ -236,10 +239,11 @@ npm test
 
 - Node.js: https://nodejs.org/
 - Express: https://expressjs.com/
-- TypeORM: https://typeorm.io/
+- node-postgres (pg): https://node-postgres.com/
 - PostgreSQL: https://www.postgresql.org/
 - Redis: https://redis.io/
 - Docker: https://www.docker.com/
+- K-Pay API docs: https://kpay.site/documentation
 
 ---
 

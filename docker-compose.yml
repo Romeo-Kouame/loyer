@@ -1,5 +1,5 @@
-version: '3.8'
-
+# Local development only. These default credentials are intentionally weak and
+# must never be reused for a staging/production database.
 services:
   postgres:
     image: postgres:15-alpine
