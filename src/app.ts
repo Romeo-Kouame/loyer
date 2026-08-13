@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import 'express-async-errors';
 import { config } from './config/environment';
+import { errorHandler } from './middleware/errorHandler';
+import authRoutes from './routes/auth.routes';
 
 const app = express();
 
@@ -31,20 +33,14 @@ app.get('/api/v1', (req, res) => {
   res.json({ message: 'Plateforme Gestion des Loyers API v1' });
 });
 
+app.use('/api/v1/auth', authRoutes);
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Endpoint not found' } });
 });
 
 // Error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err);
-  res.status(err.status || 500).json({
-    error: {
-      code: err.code || 'INTERNAL_ERROR',
-      message: err.message || 'Internal server error',
-    },
-  });
-});
+app.use(errorHandler);
 
 export default app;

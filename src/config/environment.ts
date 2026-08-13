@@ -2,6 +2,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
 export const config = {
   port: process.env.PORT || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -20,8 +28,8 @@ export const config = {
   },
   
   jwt: {
-    secret: process.env.JWT_SECRET || 'your-secret-key',
-    refreshSecret: process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+    secret: requireEnv('JWT_SECRET'),
+    refreshSecret: requireEnv('JWT_REFRESH_SECRET'),
     expiry: process.env.JWT_EXPIRY || '15m',
     refreshExpiry: process.env.JWT_REFRESH_EXPIRY || '7d',
   },
@@ -33,6 +41,9 @@ export const config = {
     },
     orange: {
       apiKey: process.env.ORANGE_MONEY_API_KEY || '',
+    },
+    mtn: {
+      apiKey: process.env.MTN_API_KEY || '',
     },
   },
   
