@@ -21,6 +21,9 @@ function toPublicUser(user: UserRecord) {
     name: user.name,
     role: user.role,
     kycStatus: user.kycStatus,
+    kycSubmittedAt: user.kycSubmittedAt,
+    kycReviewedAt: user.kycReviewedAt,
+    kycRejectionReason: user.kycRejectionReason,
   };
 }
 

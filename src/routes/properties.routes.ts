@@ -2,8 +2,15 @@ import express from 'express';
 import Joi from 'joi';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
-import { createHandler, getHandler, listHandler } from '../controllers/properties.controller';
+import {
+  createHandler,
+  getHandler,
+  listHandler,
+  submitVerificationHandler,
+  verificationDocumentHandler,
+} from '../controllers/properties.controller';
 import { assignTenantHandler, endLeaseHandler, getLeaseBalanceHandler } from '../controllers/leases.controller';
+import { uploadPropertyVerificationDocument } from '../middleware/upload';
 
 const router = express.Router();
 
@@ -28,5 +35,7 @@ router.get('/:id', getHandler);
 router.post('/:id/leases', authorize('landlord'), validate(assignTenantSchema), assignTenantHandler);
 router.delete('/:id/leases/:leaseId', authorize('landlord'), endLeaseHandler);
 router.get('/:id/leases/:leaseId/balance', getLeaseBalanceHandler);
+router.post('/:id/verification', authorize('landlord'), uploadPropertyVerificationDocument, submitVerificationHandler);
+router.get('/:id/verification/document', verificationDocumentHandler);
 
 export default router;

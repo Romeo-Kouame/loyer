@@ -2,10 +2,14 @@ import {
   createProperty,
   findPropertiesByOwnerId,
   findPropertyById,
+  listPropertiesByVerificationStatus,
   PropertyRecord,
+  PropertyVerificationStatus,
+  reviewVerification as reviewVerificationRecord,
+  submitVerificationDocument,
 } from '../repositories/property.repository';
 import { findActiveLease, findActivePropertiesForTenant, LeaseWithProperty } from '../repositories/lease.repository';
-import { ForbiddenError, NotFoundError } from '../utils/errors';
+import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
 import { RequestContext } from '../types';
 import { logAction } from './audit.service';
 
@@ -53,4 +57,103 @@ export async function getProperty(params: { propertyId: string; userId: string; 
   }
 
   throw new ForbiddenError('You do not have permission to view this property');
+}
+
+export async function submitVerification(
+  params: { propertyId: string; ownerId: string; documentPath: string; documentMimeType: string },
+  context: RequestContext = {}
+): Promise<PropertyRecord> {
+  const property = await findPropertyById(params.propertyId);
+  if (!property) {
+    throw new NotFoundError('Property not found');
+  }
+  if (property.ownerId !== params.ownerId) {
+    throw new ForbiddenError('You do not have permission to manage this property');
+  }
+
+  const updated = await submitVerificationDocument(params.propertyId, {
+    documentPath: params.documentPath,
+    documentMimeType: params.documentMimeType,
+  });
+
+  await logAction({
+    userId: params.ownerId,
+    action: 'property.verification_submitted',
+    resourceType: 'property',
+    resourceId: params.propertyId,
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+  });
+
+  return updated;
+}
+
+export async function listPendingVerifications(params: {
+  page?: number;
+  pageSize?: number;
+  status?: PropertyVerificationStatus;
+}) {
+  const pageSize = Math.min(Math.max(params.pageSize ?? 20, 1), 100);
+  const page = Math.max(params.page ?? 1, 1);
+  const offset = (page - 1) * pageSize;
+
+  const { properties, total } = await listPropertiesByVerificationStatus({
+    status: params.status ?? 'pending_review',
+    limit: pageSize,
+    offset,
+  });
+
+  return { properties, total, page, pageSize };
+}
+
+export async function reviewVerification(
+  params: { propertyId: string; status: 'verified' | 'rejected'; rejectionReason?: string },
+  context: RequestContext = {}
+): Promise<PropertyRecord> {
+  const property = await findPropertyById(params.propertyId);
+  if (!property) {
+    throw new NotFoundError('Property not found');
+  }
+  if (property.verificationStatus !== 'pending_review') {
+    throw new ConflictError('This property verification has already been reviewed');
+  }
+
+  const updated = await reviewVerificationRecord(params.propertyId, {
+    status: params.status,
+    rejectionReason: params.rejectionReason,
+  });
+
+  await logAction({
+    userId: property.ownerId,
+    action: params.status === 'verified' ? 'property.verification_approved' : 'property.verification_rejected',
+    resourceType: 'property',
+    resourceId: params.propertyId,
+    metadata: params.rejectionReason ? { rejectionReason: params.rejectionReason } : undefined,
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+  });
+
+  return updated;
+}
+
+export async function getVerificationDocumentPath(params: {
+  propertyId: string;
+  requesterId: string;
+  requesterRole: string;
+}) {
+  const property = await findPropertyById(params.propertyId);
+  if (!property) {
+    throw new NotFoundError('Property not found');
+  }
+  if (params.requesterRole !== 'admin' && property.ownerId !== params.requesterId) {
+    throw new ForbiddenError('You do not have permission to view this document');
+  }
+  if (!property.verificationDocumentPath) {
+    throw new NotFoundError('No verification document found for this property');
+  }
+
+  return {
+    path: property.verificationDocumentPath,
+    mimeType: property.verificationDocumentMimeType ?? 'application/octet-stream',
+  };
 }

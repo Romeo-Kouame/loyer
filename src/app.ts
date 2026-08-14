@@ -9,6 +9,9 @@ import authRoutes from './routes/auth.routes';
 import paymentsRoutes from './routes/payments.routes';
 import propertiesRoutes from './routes/properties.routes';
 import auditRoutes from './routes/audit.routes';
+import kycRoutes from './routes/kyc.routes';
+import adminKycRoutes from './routes/adminKyc.routes';
+import adminPropertyVerificationRoutes from './routes/adminPropertyVerification.routes';
 
 const app = express();
 
@@ -42,6 +45,9 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/payments', paymentsRoutes);
 app.use('/api/v1/properties', propertiesRoutes);
 app.use('/api/v1/admin/audit-logs', auditRoutes);
+app.use('/api/v1/kyc', kycRoutes);
+app.use('/api/v1/admin/kyc', adminKycRoutes);
+app.use('/api/v1/admin/property-verifications', adminPropertyVerificationRoutes);
 
 // 404 handler
 app.use((req, res) => {
