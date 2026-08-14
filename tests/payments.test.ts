@@ -36,6 +36,7 @@ let propertyId: string;
 beforeAll(async () => {
   const tenantRes = await request(app).post('/api/v1/auth/register').send(tenant);
   tenantToken = tenantRes.body.data.tokens.accessToken;
+  const tenantId = tenantRes.body.data.user.id;
 
   const landlordRes = await request(app).post('/api/v1/auth/register').send(landlord);
   landlordToken = landlordRes.body.data.tokens.accessToken;
@@ -46,6 +47,11 @@ beforeAll(async () => {
     [landlordId, 'Test Address, Abidjan', 2]
   );
   propertyId = propertyResult.rows[0].id;
+
+  await pool.query(
+    `INSERT INTO "leases" ("propertyId", "tenantId", status) VALUES ($1, $2, 'active')`,
+    [propertyId, tenantId]
+  );
 });
 
 afterAll(async () => {
@@ -110,6 +116,26 @@ describe('POST /api/v1/payments/initiate', () => {
 
     expect(response.status).toBe(404);
     expect(mockPost).not.toHaveBeenCalled();
+  });
+
+  it('rejects a tenant with no active lease on the property', async () => {
+    const otherPropertyResult = await pool.query(
+      `INSERT INTO "properties" ("ownerId", address, "numberOfApartments")
+       SELECT "ownerId", 'Unleased Property, Abidjan', 1 FROM "properties" WHERE id = $1
+       RETURNING id`,
+      [propertyId]
+    );
+    const unleasedPropertyId = otherPropertyResult.rows[0].id;
+
+    const response = await request(app)
+      .post('/api/v1/payments/initiate')
+      .set('Authorization', `Bearer ${tenantToken}`)
+      .send({ propertyId: unleasedPropertyId, amount: 5000, returnUrl: 'https://example.com/return' });
+
+    expect(response.status).toBe(403);
+    expect(mockPost).not.toHaveBeenCalled();
+
+    await pool.query('DELETE FROM "properties" WHERE id = $1', [unleasedPropertyId]);
   });
 
   it('rejects a missing returnUrl', async () => {

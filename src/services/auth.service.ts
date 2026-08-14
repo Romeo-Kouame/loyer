@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
 import { JwtPayload } from '../types';
-import { ConflictError, UnauthorizedError } from '../utils/errors';
+import { ConflictError, NotFoundError, UnauthorizedError } from '../utils/errors';
 import { createUser, findUserByEmail, findUserById, UserRecord } from '../repositories/user.repository';
 
 const PASSWORD_HASH_ROUNDS = 10;
@@ -70,6 +70,14 @@ export async function login(email: string, password: string) {
   }
 
   return { user: toPublicUser(user), tokens: signTokens(user) };
+}
+
+export async function getCurrentUser(userId: string) {
+  const user = await findUserById(userId);
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+  return toPublicUser(user);
 }
 
 export async function refresh(refreshToken: string): Promise<AuthTokens> {

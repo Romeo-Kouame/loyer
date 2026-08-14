@@ -91,19 +91,32 @@ migrations/          # Raw SQL migrations, applied by src/migrations/run.ts
 - `POST /api/v1/auth/register` - Register user (landlord or tenant)
 - `POST /api/v1/auth/login` - Login user
 - `POST /api/v1/auth/refresh` - Refresh access token
+- `GET /api/v1/auth/me` - Get the authenticated user's profile
 
 ### Properties
 - `POST /api/v1/properties` - Create property (landlord only)
-- `GET /api/v1/properties` - List the authenticated landlord's own properties
-- `GET /api/v1/properties/:id` - Get property details (owner or admin)
+- `GET /api/v1/properties` - List properties: a landlord's own properties, or a tenant's leased
+  properties, depending on the authenticated user's role
+- `GET /api/v1/properties/:id` - Get property details (owner, a tenant with an active lease, or
+  admin)
+
+### Leases
+A lease is what links a tenant to a property they're allowed to pay rent on - a property can have
+several apartments/tenants over time, so this isn't just a single column on `properties`.
+
+- `POST /api/v1/properties/:id/leases` - Assign a tenant to a property by email (landlord/owner
+  only)
+- `DELETE /api/v1/properties/:id/leases/:leaseId` - End a lease (landlord/owner only), revoking
+  that tenant's access to the property and to initiating further payments on it
 
 ### Payments
 Payments are processed through the [K-Pay](https://kpay.site) aggregator (MTN/Orange Money,
 Côte d'Ivoire only - Wave is not supported by K-Pay). The account is configured in GATEWAY mode:
-the tenant is redirected to a hosted K-Pay page and picks their operator there.
+the tenant is redirected to a hosted K-Pay page and picks their operator there. A tenant can only
+pay for a property they have an active lease on.
 
-- `POST /api/v1/payments/initiate` - Create a payment for a property (tenant only), returns a
-  `gatewayUrl` to redirect the tenant to
+- `POST /api/v1/payments/initiate` - Create a payment for a property (tenant only, must have an
+  active lease), returns a `gatewayUrl` to redirect the tenant to
 - `GET /api/v1/payments/:id` - Get payment status (polls K-Pay live while `pending`)
 - `POST /api/v1/payments/webhook` - K-Pay payment notification (HMAC-SHA256 signed)
 

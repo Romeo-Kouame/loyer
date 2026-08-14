@@ -12,7 +12,10 @@ export async function createHandler(req: express.Request, res: express.Response)
 }
 
 export async function listHandler(req: express.Request, res: express.Response): Promise<void> {
-  const properties = await propertyService.listMyProperties(req.user!.userId);
+  const properties = await propertyService.listMyProperties({
+    userId: req.user!.userId,
+    role: req.user!.role,
+  });
   res.status(200).json({ success: true, data: properties, timestamp: new Date() });
 }
 

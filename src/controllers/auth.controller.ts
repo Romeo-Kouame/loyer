@@ -17,3 +17,8 @@ export async function refreshHandler(req: express.Request, res: express.Response
   const tokens = await authService.refresh(refreshToken);
   res.status(200).json({ success: true, data: tokens, timestamp: new Date() });
 }
+
+export async function meHandler(req: express.Request, res: express.Response): Promise<void> {
+  const user = await authService.getCurrentUser(req.user!.userId);
+  res.status(200).json({ success: true, data: user, timestamp: new Date() });
+}

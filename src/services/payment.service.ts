@@ -2,6 +2,7 @@ import axios from 'axios';
 import crypto from 'crypto';
 import { config } from '../config/environment';
 import { findPropertyById } from '../repositories/property.repository';
+import { findActiveLease } from '../repositories/lease.repository';
 import {
   createPendingPayment,
   findPaymentById,
@@ -72,6 +73,11 @@ export async function initiatePayment(params: {
   const property = await findPropertyById(params.propertyId);
   if (!property) {
     throw new NotFoundError('Property not found');
+  }
+
+  const lease = await findActiveLease(params.propertyId, params.tenantId);
+  if (!lease) {
+    throw new ForbiddenError('You are not assigned to this property');
   }
 
   const payment = await createPendingPayment({
