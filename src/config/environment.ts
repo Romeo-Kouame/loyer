@@ -51,4 +51,8 @@ export const config = {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'),
     maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
   },
+
+  rent: {
+    gracePeriodDays: parseInt(process.env.RENT_GRACE_PERIOD_DAYS || '5'),
+  },
 };

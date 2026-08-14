@@ -1,9 +1,10 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
-import { JwtPayload } from '../types';
+import { JwtPayload, RequestContext } from '../types';
 import { ConflictError, NotFoundError, UnauthorizedError } from '../utils/errors';
 import { createUser, findUserByEmail, findUserById, UserRecord } from '../repositories/user.repository';
+import { logAction } from './audit.service';
 
 const PASSWORD_HASH_ROUNDS = 10;
 
@@ -34,13 +35,16 @@ function signTokens(user: UserRecord): AuthTokens {
   return { accessToken, refreshToken };
 }
 
-export async function register(params: {
-  email: string;
-  phone: string;
-  name: string;
-  password: string;
-  role: 'landlord' | 'tenant';
-}) {
+export async function register(
+  params: {
+    email: string;
+    phone: string;
+    name: string;
+    password: string;
+    role: 'landlord' | 'tenant';
+  },
+  context: RequestContext = {}
+) {
   const existing = await findUserByEmail(params.email);
   if (existing) {
     throw new ConflictError('An account with this email already exists');
@@ -55,19 +59,51 @@ export async function register(params: {
     role: params.role,
   });
 
+  await logAction({
+    userId: user.id,
+    action: 'user.registered',
+    resourceType: 'user',
+    resourceId: user.id,
+    metadata: { role: user.role },
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+  });
+
   return { user: toPublicUser(user), tokens: signTokens(user) };
 }
 
-export async function login(email: string, password: string) {
+export async function login(email: string, password: string, context: RequestContext = {}) {
   const user = await findUserByEmail(email);
   if (!user) {
+    await logAction({
+      action: 'user.login_failed',
+      metadata: { email },
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+    });
     throw new UnauthorizedError('Invalid email or password');
   }
 
   const passwordMatches = await bcrypt.compare(password, user.passwordHash);
   if (!passwordMatches) {
+    await logAction({
+      userId: user.id,
+      action: 'user.login_failed',
+      metadata: { email },
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+    });
     throw new UnauthorizedError('Invalid email or password');
   }
+
+  await logAction({
+    userId: user.id,
+    action: 'user.login',
+    resourceType: 'user',
+    resourceId: user.id,
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+  });
 
   return { user: toPublicUser(user), tokens: signTokens(user) };
 }

@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/errorHandler';
 import authRoutes from './routes/auth.routes';
 import paymentsRoutes from './routes/payments.routes';
 import propertiesRoutes from './routes/properties.routes';
+import auditRoutes from './routes/audit.routes';
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.get('/api/v1', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/payments', paymentsRoutes);
 app.use('/api/v1/properties', propertiesRoutes);
+app.use('/api/v1/admin/audit-logs', auditRoutes);
 
 // 404 handler
 app.use((req, res) => {

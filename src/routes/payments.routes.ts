@@ -2,7 +2,7 @@ import express from 'express';
 import Joi from 'joi';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
-import { initiateHandler, statusHandler, webhookHandler } from '../controllers/payments.controller';
+import { initiateHandler, receiptHandler, statusHandler, webhookHandler } from '../controllers/payments.controller';
 
 const router = express.Router();
 
@@ -17,5 +17,6 @@ const initiateSchema = Joi.object({
 router.post('/webhook', webhookHandler);
 router.post('/initiate', authenticate, authorize('tenant'), validate(initiateSchema), initiateHandler);
 router.get('/:id', authenticate, statusHandler);
+router.get('/:id/receipt', authenticate, receiptHandler);
 
 export default router;

@@ -3,6 +3,10 @@ import crypto from 'crypto';
 import { config } from '../config/environment';
 import { findPropertyById } from '../repositories/property.repository';
 import { findActiveLease } from '../repositories/lease.repository';
+import { findUserById } from '../repositories/user.repository';
+import { getLeaseBalance } from './lease.service';
+import { logAction } from './audit.service';
+import { RequestContext } from '../types';
 import {
   createPendingPayment,
   findPaymentById,
@@ -13,7 +17,7 @@ import {
   setPaymentInitiated,
   updatePaymentStatus,
 } from '../repositories/payment.repository';
-import { AppError, ForbiddenError, NotFoundError, UnauthorizedError } from '../utils/errors';
+import { AppError, ForbiddenError, NotFoundError, UnauthorizedError, ValidationError } from '../utils/errors';
 import { logger } from '../utils/logger';
 
 const kpayClient = axios.create({
@@ -62,14 +66,17 @@ export interface InitiatedPayment extends PaymentRecord {
   expiresAt: string | null;
 }
 
-export async function initiatePayment(params: {
-  tenantId: string;
-  propertyId: string;
-  amount: number;
-  returnUrl: string;
-  cancelUrl?: string;
-  description?: string;
-}): Promise<InitiatedPayment> {
+export async function initiatePayment(
+  params: {
+    tenantId: string;
+    propertyId: string;
+    amount: number;
+    returnUrl: string;
+    cancelUrl?: string;
+    description?: string;
+  },
+  context: RequestContext = {}
+): Promise<InitiatedPayment> {
   const property = await findPropertyById(params.propertyId);
   if (!property) {
     throw new NotFoundError('Property not found');
@@ -80,9 +87,17 @@ export async function initiatePayment(params: {
     throw new ForbiddenError('You are not assigned to this property');
   }
 
+  const balance = await getLeaseBalance(lease.id);
+  if (!lease.installmentsAllowed && params.amount < balance.balance) {
+    throw new ValidationError(
+      `Partial payments are not allowed on this lease. The outstanding balance is ${balance.balance}.`
+    );
+  }
+
   const payment = await createPendingPayment({
     tenantId: params.tenantId,
     propertyId: params.propertyId,
+    leaseId: lease.id,
     amount: params.amount,
   });
 
@@ -101,6 +116,16 @@ export async function initiatePayment(params: {
       status: mapKpayStatus(response.data.status),
     });
 
+    await logAction({
+      userId: params.tenantId,
+      action: 'payment.initiated',
+      resourceType: 'payment',
+      resourceId: payment.id,
+      metadata: { propertyId: params.propertyId, leaseId: lease.id, amount: params.amount },
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+    });
+
     return {
       ...updated,
       gatewayUrl: response.data.gatewayUrl ?? '',
@@ -109,6 +134,14 @@ export async function initiatePayment(params: {
   } catch (err) {
     logger.error(`K-Pay payment initiation failed for payment ${payment.id}: ${err}`);
     await updatePaymentStatus(payment.id, 'failed');
+    await logAction({
+      userId: params.tenantId,
+      action: 'payment.initiation_failed',
+      resourceType: 'payment',
+      resourceId: payment.id,
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+    });
     throw new AppError('Payment initiation failed with the payment provider', 502, 'PAYMENT_PROVIDER_ERROR');
   }
 }
@@ -152,7 +185,11 @@ export interface KpayWebhookPayload {
   externalId: string;
 }
 
-export async function handleWebhook(rawBody: Buffer, signature: string | undefined): Promise<void> {
+export async function handleWebhook(
+  rawBody: Buffer,
+  signature: string | undefined,
+  context: RequestContext = {}
+): Promise<void> {
   if (!config.kpay.webhookSecret) {
     throw new AppError('K-Pay webhook secret is not configured', 500, 'WEBHOOK_NOT_CONFIGURED');
   }
@@ -198,4 +235,61 @@ export async function handleWebhook(rawBody: Buffer, signature: string | undefin
   }
 
   await updatePaymentStatus(payment.id, status, { webhookReceivedAt: new Date(), provider });
+
+  if (status === 'confirmed' || status === 'failed') {
+    await logAction({
+      userId: payment.tenantId,
+      action: status === 'confirmed' ? 'payment.confirmed' : 'payment.failed',
+      resourceType: 'payment',
+      resourceId: payment.id,
+      metadata: { source: 'webhook' },
+      ipAddress: context.ipAddress,
+      userAgent: context.userAgent,
+    });
+  }
+}
+
+export interface PaymentReceipt {
+  payment: PaymentRecord;
+  property: { address: string };
+  tenant: { name: string; email: string };
+  landlord: { name: string; email: string };
+}
+
+export async function getReceipt(params: {
+  paymentId: string;
+  userId: string;
+  role: string;
+}): Promise<PaymentReceipt> {
+  const payment = await findPaymentById(params.paymentId);
+  if (!payment) {
+    throw new NotFoundError('Payment not found');
+  }
+
+  const property = await findPropertyById(payment.propertyId);
+  if (!property) {
+    throw new NotFoundError('Property not found');
+  }
+
+  const isTenant = params.role === 'tenant' && payment.tenantId === params.userId;
+  const isLandlord = params.role === 'landlord' && property.ownerId === params.userId;
+  if (params.role !== 'admin' && !isTenant && !isLandlord) {
+    throw new ForbiddenError('You do not have permission to view this receipt');
+  }
+
+  const [tenant, landlord] = await Promise.all([
+    findUserById(payment.tenantId),
+    findUserById(property.ownerId),
+  ]);
+
+  if (!tenant || !landlord) {
+    throw new NotFoundError('Receipt participants not found');
+  }
+
+  return {
+    payment,
+    property: { address: property.address },
+    tenant: { name: tenant.name, email: tenant.email },
+    landlord: { name: landlord.name, email: landlord.email },
+  };
 }

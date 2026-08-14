@@ -1,14 +1,19 @@
 import express from 'express';
 import * as authService from '../services/auth.service';
+import { RequestContext } from '../types';
+
+function contextFrom(req: express.Request): RequestContext {
+  return { ipAddress: req.ip, userAgent: req.header('user-agent') };
+}
 
 export async function registerHandler(req: express.Request, res: express.Response): Promise<void> {
-  const result = await authService.register(req.body);
+  const result = await authService.register(req.body, contextFrom(req));
   res.status(201).json({ success: true, data: result, timestamp: new Date() });
 }
 
 export async function loginHandler(req: express.Request, res: express.Response): Promise<void> {
   const { email, password } = req.body;
-  const result = await authService.login(email, password);
+  const result = await authService.login(email, password, contextFrom(req));
   res.status(200).json({ success: true, data: result, timestamp: new Date() });
 }
 

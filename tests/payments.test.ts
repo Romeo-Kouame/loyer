@@ -49,8 +49,9 @@ beforeAll(async () => {
   propertyId = propertyResult.rows[0].id;
 
   await pool.query(
-    `INSERT INTO "leases" ("propertyId", "tenantId", status) VALUES ($1, $2, 'active')`,
-    [propertyId, tenantId]
+    `INSERT INTO "leases" ("propertyId", "tenantId", status, "rentAmount", "moveInDate", "installmentsAllowed")
+     VALUES ($1, $2, 'active', $3, $4, true)`,
+    [propertyId, tenantId, 200000, '2020-01-01']
   );
 });
 

@@ -2,11 +2,14 @@ import express from 'express';
 import * as propertyService from '../services/property.service';
 
 export async function createHandler(req: express.Request, res: express.Response): Promise<void> {
-  const property = await propertyService.addProperty({
-    ownerId: req.user!.userId,
-    address: req.body.address,
-    numberOfApartments: req.body.numberOfApartments,
-  });
+  const property = await propertyService.addProperty(
+    {
+      ownerId: req.user!.userId,
+      address: req.body.address,
+      numberOfApartments: req.body.numberOfApartments,
+    },
+    { ipAddress: req.ip, userAgent: req.header('user-agent') }
+  );
 
   res.status(201).json({ success: true, data: property, timestamp: new Date() });
 }

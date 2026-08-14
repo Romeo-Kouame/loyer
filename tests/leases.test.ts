@@ -30,6 +30,8 @@ let otherLandlordToken: string;
 let tenantToken: string;
 let propertyId: string;
 
+const validLeaseTerms = { rentAmount: 50000, moveInDate: '2026-01-15' };
+
 beforeAll(async () => {
   const landlordRes = await request(app).post('/api/v1/auth/register').send(landlord);
   landlordToken = landlordRes.body.data.tokens.accessToken;
@@ -62,17 +64,19 @@ describe('POST /api/v1/properties/:id/leases', () => {
     const response = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${landlordToken}`)
-      .send({ tenantEmail: tenant.email });
+      .send({ tenantEmail: tenant.email, ...validLeaseTerms });
 
     expect(response.status).toBe(201);
     expect(response.body.data.status).toBe('active');
+    expect(response.body.data.rentAmount).toBe('50000.00');
+    expect(response.body.data.installmentsAllowed).toBe(false);
   });
 
   it('rejects a landlord who does not own the property', async () => {
     const response = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${otherLandlordToken}`)
-      .send({ tenantEmail: tenant.email });
+      .send({ tenantEmail: tenant.email, ...validLeaseTerms });
 
     expect(response.status).toBe(403);
   });
@@ -81,7 +85,7 @@ describe('POST /api/v1/properties/:id/leases', () => {
     const response = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${landlordToken}`)
-      .send({ tenantEmail: tenant.email });
+      .send({ tenantEmail: tenant.email, ...validLeaseTerms });
 
     expect(response.status).toBe(409);
   });
@@ -90,7 +94,7 @@ describe('POST /api/v1/properties/:id/leases', () => {
     const response = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${landlordToken}`)
-      .send({ tenantEmail: landlord.email });
+      .send({ tenantEmail: landlord.email, ...validLeaseTerms });
 
     expect(response.status).toBe(404);
   });
@@ -99,7 +103,7 @@ describe('POST /api/v1/properties/:id/leases', () => {
     const response = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${tenantToken}`)
-      .send({ tenantEmail: tenant.email });
+      .send({ tenantEmail: tenant.email, ...validLeaseTerms });
 
     expect(response.status).toBe(403);
   });
