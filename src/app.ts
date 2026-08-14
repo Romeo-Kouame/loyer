@@ -12,6 +12,7 @@ import auditRoutes from './routes/audit.routes';
 import kycRoutes from './routes/kyc.routes';
 import adminKycRoutes from './routes/adminKyc.routes';
 import adminPropertyVerificationRoutes from './routes/adminPropertyVerification.routes';
+import payoutRoutes from './routes/payout.routes';
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use('/api/v1/admin/audit-logs', auditRoutes);
 app.use('/api/v1/kyc', kycRoutes);
 app.use('/api/v1/admin/kyc', adminKycRoutes);
 app.use('/api/v1/admin/property-verifications', adminPropertyVerificationRoutes);
+app.use('/api/v1/payouts', payoutRoutes);
 
 // 404 handler
 app.use((req, res) => {

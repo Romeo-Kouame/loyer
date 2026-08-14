@@ -55,4 +55,11 @@ export const config = {
   rent: {
     gracePeriodDays: parseInt(process.env.RENT_GRACE_PERIOD_DAYS || '5'),
   },
+
+  payouts: {
+    // Platform commission taken from each confirmed payment before the rest
+    // is pushed to the landlord (0.04 = 4%). K-Pay's own withdrawal fee is
+    // separate and deducted by them on top of this.
+    commissionRate: parseFloat(process.env.PAYOUT_COMMISSION_RATE || '0.04'),
+  },
 };

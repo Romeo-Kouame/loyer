@@ -1,6 +1,7 @@
 import { pool } from '../config/database';
 
 export type KycStatus = 'pending' | 'verified' | 'rejected';
+export type PayoutProvider = 'mtn' | 'orange';
 
 export interface UserRecord {
   id: string;
@@ -15,10 +16,13 @@ export interface UserRecord {
   kycSubmittedAt: Date | null;
   kycReviewedAt: Date | null;
   kycRejectionReason: string | null;
+  payoutProvider: PayoutProvider | null;
+  payoutPhoneNumber: string | null;
 }
 
 const USER_COLUMNS = `id, email, phone, name, "passwordHash", role, "kycStatus",
-  "kycDocumentPath", "kycDocumentMimeType", "kycSubmittedAt", "kycReviewedAt", "kycRejectionReason"`;
+  "kycDocumentPath", "kycDocumentMimeType", "kycSubmittedAt", "kycReviewedAt", "kycRejectionReason",
+  "payoutProvider", "payoutPhoneNumber"`;
 
 export async function findUserByEmail(email: string): Promise<UserRecord | null> {
   const result = await pool.query<UserRecord>(
@@ -81,6 +85,20 @@ export async function reviewKyc(
      WHERE id = $1
      RETURNING ${USER_COLUMNS}`,
     [userId, params.status, params.rejectionReason ?? null]
+  );
+  return result.rows[0];
+}
+
+export async function updatePayoutDestination(
+  userId: string,
+  params: { payoutProvider: PayoutProvider; payoutPhoneNumber: string }
+): Promise<UserRecord> {
+  const result = await pool.query<UserRecord>(
+    `UPDATE "users"
+     SET "payoutProvider" = $2, "payoutPhoneNumber" = $3
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [userId, params.payoutProvider, params.payoutPhoneNumber]
   );
   return result.rows[0];
 }

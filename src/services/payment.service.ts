@@ -6,6 +6,7 @@ import { findActiveLease } from '../repositories/lease.repository';
 import { findUserById } from '../repositories/user.repository';
 import { getLeaseBalance } from './lease.service';
 import { logAction } from './audit.service';
+import { createPayoutForPayment, handlePayoutWebhookUpdate } from './payout.service';
 import { RequestContext } from '../types';
 import {
   createPendingPayment,
@@ -167,7 +168,11 @@ export async function getPaymentStatus(params: {
       const mappedProvider = mapKpayProviderCode(response.data.provider);
 
       if (mappedStatus !== payment.status || (mappedProvider && !payment.provider)) {
-        return await updatePaymentStatus(payment.id, mappedStatus, { provider: mappedProvider });
+        const updated = await updatePaymentStatus(payment.id, mappedStatus, { provider: mappedProvider });
+        if (mappedStatus === 'confirmed') {
+          await createPayoutForPayment(updated);
+        }
+        return updated;
       }
     } catch (err) {
       logger.warn(`Failed to poll K-Pay status for payment ${payment.id}: ${err}`);
@@ -211,6 +216,18 @@ export async function handleWebhook(
 
   const payload = JSON.parse(rawBody.toString()) as KpayWebhookPayload;
 
+  if (payload.event?.startsWith('payout.')) {
+    const handled = await handlePayoutWebhookUpdate({
+      paymentId: payload.paymentId,
+      externalId: payload.externalId,
+      status: payload.status,
+    });
+    if (!handled) {
+      logger.warn(`K-Pay payout webhook received for unknown payout: ${payload.externalId ?? payload.paymentId}`);
+    }
+    return;
+  }
+
   const payment =
     (payload.externalId && (await findPaymentById(payload.externalId))) ??
     (await findPaymentByTransactionId(payload.paymentId));
@@ -234,7 +251,8 @@ export async function handleWebhook(
     }
   }
 
-  await updatePaymentStatus(payment.id, status, { webhookReceivedAt: new Date(), provider });
+  const wasAlreadyConfirmed = payment.status === 'confirmed';
+  const updated = await updatePaymentStatus(payment.id, status, { webhookReceivedAt: new Date(), provider });
 
   if (status === 'confirmed' || status === 'failed') {
     await logAction({
@@ -246,6 +264,10 @@ export async function handleWebhook(
       ipAddress: context.ipAddress,
       userAgent: context.userAgent,
     });
+  }
+
+  if (status === 'confirmed' && !wasAlreadyConfirmed) {
+    await createPayoutForPayment(updated);
   }
 }
 
