@@ -5,6 +5,7 @@ import { findPropertyById } from '../repositories/property.repository';
 import { findUserById, PayoutProvider, updatePayoutDestination, UserRecord } from '../repositories/user.repository';
 import {
   createPayout,
+  findDuePayouts,
   findPayoutById,
   findPayoutByPaymentId,
   findPayoutByTransactionId,
@@ -17,6 +18,7 @@ import {
 import { ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import { logger } from '../utils/logger';
 import { logAction } from './audit.service';
+import { notifyPayoutCompleted } from './notification.service';
 import { RequestContext } from '../types';
 
 const kpayClient = axios.create({
@@ -44,6 +46,19 @@ interface KpayWithdrawResponse {
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+function getHoldReason(landlord: UserRecord, propertyVerificationStatus: string): string | null {
+  if (landlord.kycStatus !== 'verified') {
+    return 'landlord_not_verified';
+  }
+  if (propertyVerificationStatus !== 'verified') {
+    return 'property_not_verified';
+  }
+  if (!landlord.payoutProvider || !landlord.payoutPhoneNumber) {
+    return 'no_payout_destination';
+  }
+  return null;
 }
 
 export async function setPayoutDestination(
@@ -91,6 +106,8 @@ async function attemptWithdrawal(payout: PayoutRecord, landlord: UserRecord): Pr
   }
 }
 
+/** Creates the payout row on payment confirmation. Held for `reserveHoldHours`
+ * before any withdrawal is attempted, leaving a window for a dispute. */
 export async function createPayoutForPayment(payment: PaymentRecord): Promise<PayoutRecord> {
   const existing = await findPayoutByPaymentId(payment.id);
   if (existing) {
@@ -102,36 +119,52 @@ export async function createPayoutForPayment(payment: PaymentRecord): Promise<Pa
     throw new NotFoundError('Property not found for payout');
   }
 
-  const landlord = await findUserById(property.ownerId);
-  if (!landlord) {
-    throw new NotFoundError('Landlord not found for payout');
-  }
-
   const grossAmount = Number(payment.amount);
   const commissionAmount = round2(grossAmount * config.payouts.commissionRate);
   const payoutAmount = round2(grossAmount - commissionAmount);
-
-  const holdReason = getHoldReason(landlord, property.verificationStatus);
+  const scheduledFor = new Date(Date.now() + config.payouts.reserveHoldHours * 60 * 60 * 1000);
 
   const payout = await createPayout({
     paymentId: payment.id,
-    landlordId: landlord.id,
+    landlordId: property.ownerId,
     grossAmount,
     commissionAmount,
     payoutAmount,
-    status: holdReason ? 'on_hold' : 'pending',
-    holdReason,
+    status: 'pending',
+    scheduledFor,
   });
 
+  await logAction({
+    userId: property.ownerId,
+    action: 'payout.scheduled',
+    resourceType: 'payout',
+    resourceId: payout.id,
+    metadata: { paymentId: payment.id, payoutAmount, scheduledFor: scheduledFor.toISOString() },
+  });
+
+  return payout;
+}
+
+async function processPayout(payout: PayoutRecord): Promise<PayoutRecord> {
+  const landlord = await findUserById(payout.landlordId);
+  if (!landlord) {
+    return setPayoutStatus(payout.id, { status: 'failed', failureReason: 'Landlord not found' });
+  }
+
+  const payment = await findPaymentById(payout.paymentId);
+  const property = payment ? await findPropertyById(payment.propertyId) : null;
+
+  const holdReason = getHoldReason(landlord, property?.verificationStatus ?? 'unverified');
   if (holdReason) {
+    const held = await setPayoutStatus(payout.id, { status: 'on_hold', holdReason });
     await logAction({
       userId: landlord.id,
       action: 'payout.on_hold',
       resourceType: 'payout',
       resourceId: payout.id,
-      metadata: { holdReason, paymentId: payment.id },
+      metadata: { holdReason },
     });
-    return payout;
+    return held;
   }
 
   const updated = await attemptWithdrawal(payout, landlord);
@@ -141,26 +174,23 @@ export async function createPayoutForPayment(payment: PaymentRecord): Promise<Pa
     action: updated.status === 'processing' ? 'payout.initiated' : 'payout.initiation_failed',
     resourceType: 'payout',
     resourceId: payout.id,
-    metadata: { paymentId: payment.id, payoutAmount },
   });
 
   return updated;
 }
 
-function getHoldReason(
-  landlord: UserRecord,
-  propertyVerificationStatus: string
-): string | null {
-  if (landlord.kycStatus !== 'verified') {
-    return 'landlord_not_verified';
+/** Sweeps payouts whose reserve hold has elapsed and attempts them. Meant to
+ * be called periodically by a background scheduler (see src/jobs). */
+export async function processDuePayouts(): Promise<{ processed: number }> {
+  const due = await findDuePayouts(new Date());
+  for (const payout of due) {
+    try {
+      await processPayout(payout);
+    } catch (err) {
+      logger.error(`Failed to process due payout ${payout.id}: ${err}`);
+    }
   }
-  if (propertyVerificationStatus !== 'verified') {
-    return 'property_not_verified';
-  }
-  if (!landlord.payoutProvider || !landlord.payoutPhoneNumber) {
-    return 'no_payout_destination';
-  }
-  return null;
+  return { processed: due.length };
 }
 
 export async function retryPayout(
@@ -178,34 +208,11 @@ export async function retryPayout(
     throw new ValidationError('Only on-hold or failed payouts can be retried');
   }
 
-  const landlord = await findUserById(payout.landlordId);
-  if (!landlord) {
-    throw new NotFoundError('Landlord not found');
-  }
-
-  const payment = await findPaymentById(payout.paymentId);
-  const property = payment ? await findPropertyById(payment.propertyId) : null;
-
-  const holdReason = getHoldReason(landlord, property?.verificationStatus ?? 'unverified');
-  if (holdReason) {
-    const held = await setPayoutStatus(payout.id, { status: 'on_hold' });
-    await logAction({
-      userId: landlord.id,
-      action: 'payout.on_hold',
-      resourceType: 'payout',
-      resourceId: payout.id,
-      metadata: { holdReason },
-      ipAddress: context.ipAddress,
-      userAgent: context.userAgent,
-    });
-    return held;
-  }
-
-  const updated = await attemptWithdrawal(payout, landlord);
+  const updated = await processPayout(payout);
 
   await logAction({
-    userId: landlord.id,
-    action: updated.status === 'processing' ? 'payout.initiated' : 'payout.initiation_failed',
+    userId: payout.landlordId,
+    action: 'payout.retry_attempted',
     resourceType: 'payout',
     resourceId: payout.id,
     ipAddress: context.ipAddress,
@@ -243,6 +250,13 @@ export async function handlePayoutWebhookUpdate(payload: {
     resourceId: payout.id,
   });
 
+  if (status === 'completed') {
+    const landlord = await findUserById(payout.landlordId);
+    if (landlord) {
+      await notifyPayoutCompleted({ landlordEmail: landlord.email, payoutAmount: payout.payoutAmount });
+    }
+  }
+
   return true;
 }
 
@@ -258,4 +272,56 @@ export async function listMyPayouts(params: { landlordId: string; page?: number;
   });
 
   return { payouts, total, page, pageSize };
+}
+
+export async function holdPayoutForDispute(paymentId: string): Promise<void> {
+  const payout = await findPayoutByPaymentId(paymentId);
+  if (!payout || payout.status !== 'pending') {
+    return;
+  }
+
+  await setPayoutStatus(payout.id, { status: 'on_hold', holdReason: 'payment_disputed' });
+  await logAction({
+    userId: payout.landlordId,
+    action: 'payout.on_hold',
+    resourceType: 'payout',
+    resourceId: payout.id,
+    metadata: { holdReason: 'payment_disputed' },
+  });
+}
+
+export async function resumePayoutAfterDispute(paymentId: string): Promise<void> {
+  const payout = await findPayoutByPaymentId(paymentId);
+  if (!payout || payout.holdReason !== 'payment_disputed') {
+    return;
+  }
+
+  await setPayoutStatus(payout.id, { status: 'pending', holdReason: null, scheduledFor: new Date() });
+  await logAction({
+    userId: payout.landlordId,
+    action: 'payout.resumed',
+    resourceType: 'payout',
+    resourceId: payout.id,
+  });
+}
+
+export async function cancelPayoutForRefund(paymentId: string): Promise<{ payoutAlreadySent: boolean }> {
+  const payout = await findPayoutByPaymentId(paymentId);
+  if (!payout) {
+    return { payoutAlreadySent: false };
+  }
+
+  if (payout.status === 'processing' || payout.status === 'completed') {
+    return { payoutAlreadySent: true };
+  }
+
+  await setPayoutStatus(payout.id, { status: 'failed', failureReason: 'Payment refunded' });
+  await logAction({
+    userId: payout.landlordId,
+    action: 'payout.cancelled_for_refund',
+    resourceType: 'payout',
+    resourceId: payout.id,
+  });
+
+  return { payoutAlreadySent: false };
 }

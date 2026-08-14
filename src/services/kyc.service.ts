@@ -9,6 +9,7 @@ import {
 import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
 import { RequestContext } from '../types';
 import { logAction } from './audit.service';
+import { notifyKycRejected } from './notification.service';
 
 export async function submitKyc(
   params: { userId: string; documentPath: string; documentMimeType: string },
@@ -83,6 +84,10 @@ export async function reviewKyc(
     ipAddress: context.ipAddress,
     userAgent: context.userAgent,
   });
+
+  if (params.status === 'rejected' && params.rejectionReason) {
+    await notifyKycRejected({ email: user.email, rejectionReason: params.rejectionReason });
+  }
 
   return updated;
 }

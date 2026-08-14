@@ -61,5 +61,16 @@ export const config = {
     // is pushed to the landlord (0.04 = 4%). K-Pay's own withdrawal fee is
     // separate and deducted by them on top of this.
     commissionRate: parseFloat(process.env.PAYOUT_COMMISSION_RATE || '0.04'),
+    // Hours to wait after payment confirmation before a payout is actually
+    // attempted, leaving a window for a dispute to be raised first.
+    reserveHoldHours: parseFloat(process.env.PAYOUT_RESERVE_HOLD_HOURS || '48'),
+  },
+
+  email: {
+    host: process.env.SMTP_HOST || '',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    user: process.env.SMTP_USER || '',
+    password: process.env.SMTP_PASSWORD || '',
+    from: process.env.EMAIL_FROM || 'no-reply@example.com',
   },
 };

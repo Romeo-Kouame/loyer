@@ -9,9 +9,11 @@ import {
   submitVerificationDocument,
 } from '../repositories/property.repository';
 import { findActiveLease, findActivePropertiesForTenant, LeaseWithProperty } from '../repositories/lease.repository';
+import { findUserById } from '../repositories/user.repository';
 import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
 import { RequestContext } from '../types';
 import { logAction } from './audit.service';
+import { notifyPropertyVerificationRejected } from './notification.service';
 
 export async function addProperty(
   params: { ownerId: string; address: string; numberOfApartments: number },
@@ -132,6 +134,17 @@ export async function reviewVerification(
     ipAddress: context.ipAddress,
     userAgent: context.userAgent,
   });
+
+  if (params.status === 'rejected' && params.rejectionReason) {
+    const landlord = await findUserById(property.ownerId);
+    if (landlord) {
+      await notifyPropertyVerificationRejected({
+        landlordEmail: landlord.email,
+        propertyAddress: property.address,
+        rejectionReason: params.rejectionReason,
+      });
+    }
+  }
 
   return updated;
 }

@@ -3,6 +3,9 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 
 process.env.KPAY_WEBHOOK_SECRET = 'test-webhook-secret';
+// No reserve hold in tests: payouts become due immediately so
+// processDuePayouts() can be exercised without faking timers.
+process.env.PAYOUT_RESERVE_HOLD_HOURS = '0';
 
 const mockPost = jest.fn();
 const mockGet = jest.fn();
@@ -15,6 +18,7 @@ jest.mock('axios', () => ({
 import app from '../src/app';
 import { pool } from '../src/config/database';
 import { config } from '../src/config/environment';
+import { processDuePayouts } from '../src/services/payout.service';
 
 const uniqueSuffix = Date.now();
 const landlord = {
@@ -134,6 +138,7 @@ async function confirmAPayment(): Promise<string> {
 describe('Payout creation on payment confirmation', () => {
   it('creates an on-hold payout when the landlord is not verified', async () => {
     await confirmAPayment();
+    await processDuePayouts();
 
     const result = await pool.query('SELECT * FROM "payouts" WHERE "landlordId" = $1', [landlordId]);
     expect(result.rows).toHaveLength(1);

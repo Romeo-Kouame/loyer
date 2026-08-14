@@ -14,12 +14,13 @@ export interface PayoutRecord {
   transactionId: string | null;
   providerReference: string | null;
   failureReason: string | null;
+  scheduledFor: Date;
   createdAt: Date;
   completedAt: Date | null;
 }
 
 const PAYOUT_COLUMNS = `id, "paymentId", "landlordId", "grossAmount", "commissionAmount", "payoutAmount",
-  status, "holdReason", "transactionId", "providerReference", "failureReason", "createdAt", "completedAt"`;
+  status, "holdReason", "transactionId", "providerReference", "failureReason", "scheduledFor", "createdAt", "completedAt"`;
 
 export async function createPayout(params: {
   paymentId: string;
@@ -28,11 +29,12 @@ export async function createPayout(params: {
   commissionAmount: number;
   payoutAmount: number;
   status: PayoutStatus;
+  scheduledFor: Date;
   holdReason?: string | null;
 }): Promise<PayoutRecord> {
   const result = await pool.query<PayoutRecord>(
-    `INSERT INTO "payouts" ("paymentId", "landlordId", "grossAmount", "commissionAmount", "payoutAmount", status, "holdReason")
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO "payouts" ("paymentId", "landlordId", "grossAmount", "commissionAmount", "payoutAmount", status, "scheduledFor", "holdReason")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING ${PAYOUT_COLUMNS}`,
     [
       params.paymentId,
@@ -41,10 +43,19 @@ export async function createPayout(params: {
       params.commissionAmount,
       params.payoutAmount,
       params.status,
+      params.scheduledFor,
       params.holdReason ?? null,
     ]
   );
   return result.rows[0];
+}
+
+export async function findDuePayouts(now: Date): Promise<PayoutRecord[]> {
+  const result = await pool.query<PayoutRecord>(
+    `SELECT ${PAYOUT_COLUMNS} FROM "payouts" WHERE status = 'pending' AND "scheduledFor" <= $1`,
+    [now]
+  );
+  return result.rows;
 }
 
 export async function findPayoutById(id: string): Promise<PayoutRecord | null> {
@@ -83,14 +94,25 @@ export async function setPayoutProcessing(
 
 export async function setPayoutStatus(
   id: string,
-  params: { status: PayoutStatus; failureReason?: string | null; completedAt?: Date }
+  params: {
+    status: PayoutStatus;
+    failureReason?: string | null;
+    holdReason?: string | null;
+    completedAt?: Date;
+    scheduledFor?: Date;
+  }
 ): Promise<PayoutRecord> {
   const result = await pool.query<PayoutRecord>(
     `UPDATE "payouts"
-     SET status = $2, "failureReason" = $3, "completedAt" = COALESCE($4, "completedAt"), "updatedAt" = CURRENT_TIMESTAMP
+     SET status = $2,
+         "failureReason" = $3,
+         "holdReason" = $4,
+         "completedAt" = COALESCE($5, "completedAt"),
+         "scheduledFor" = COALESCE($6, "scheduledFor"),
+         "updatedAt" = CURRENT_TIMESTAMP
      WHERE id = $1
      RETURNING ${PAYOUT_COLUMNS}`,
-    [id, params.status, params.failureReason ?? null, params.completedAt ?? null]
+    [id, params.status, params.failureReason ?? null, params.holdReason ?? null, params.completedAt ?? null, params.scheduledFor ?? null]
   );
   return result.rows[0];
 }

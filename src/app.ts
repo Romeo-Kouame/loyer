@@ -13,6 +13,8 @@ import kycRoutes from './routes/kyc.routes';
 import adminKycRoutes from './routes/adminKyc.routes';
 import adminPropertyVerificationRoutes from './routes/adminPropertyVerification.routes';
 import payoutRoutes from './routes/payout.routes';
+import adminDisputesRoutes from './routes/adminDisputes.routes';
+import adminRefundsRoutes from './routes/adminRefunds.routes';
 
 const app = express();
 
@@ -50,6 +52,8 @@ app.use('/api/v1/kyc', kycRoutes);
 app.use('/api/v1/admin/kyc', adminKycRoutes);
 app.use('/api/v1/admin/property-verifications', adminPropertyVerificationRoutes);
 app.use('/api/v1/payouts', payoutRoutes);
+app.use('/api/v1/admin/disputes', adminDisputesRoutes);
+app.use('/api/v1/admin/refunds', adminRefundsRoutes);
 
 // 404 handler
 app.use((req, res) => {

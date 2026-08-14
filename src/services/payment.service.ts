@@ -7,6 +7,7 @@ import { findUserById } from '../repositories/user.repository';
 import { getLeaseBalance } from './lease.service';
 import { logAction } from './audit.service';
 import { createPayoutForPayment, handlePayoutWebhookUpdate } from './payout.service';
+import { notifyPaymentConfirmed } from './notification.service';
 import { RequestContext } from '../types';
 import {
   createPendingPayment,
@@ -60,6 +61,21 @@ function mapKpayProviderCode(code: string | null): PaymentProvider | null {
   if (code.startsWith('MTN_MOMO')) return 'mtn';
   if (code.startsWith('ORANGE')) return 'orange';
   return null;
+}
+
+async function notifyPaymentConfirmedForPayment(payment: PaymentRecord): Promise<void> {
+  const property = await findPropertyById(payment.propertyId);
+  if (!property) return;
+
+  const [tenant, landlord] = await Promise.all([findUserById(payment.tenantId), findUserById(property.ownerId)]);
+  if (!tenant || !landlord) return;
+
+  await notifyPaymentConfirmed({
+    tenantEmail: tenant.email,
+    landlordEmail: landlord.email,
+    propertyAddress: property.address,
+    amount: payment.amount,
+  });
 }
 
 export interface InitiatedPayment extends PaymentRecord {
@@ -171,6 +187,7 @@ export async function getPaymentStatus(params: {
         const updated = await updatePaymentStatus(payment.id, mappedStatus, { provider: mappedProvider });
         if (mappedStatus === 'confirmed') {
           await createPayoutForPayment(updated);
+          await notifyPaymentConfirmedForPayment(updated);
         }
         return updated;
       }
@@ -268,6 +285,7 @@ export async function handleWebhook(
 
   if (status === 'confirmed' && !wasAlreadyConfirmed) {
     await createPayoutForPayment(updated);
+    await notifyPaymentConfirmedForPayment(updated);
   }
 }
 
