@@ -56,7 +56,7 @@ describe('sendDueReminders', () => {
     const leaseRes = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${landlordToken}`)
-      .send({ tenantEmail: tenant.email, rentAmount: 50000, moveInDate: '2026-01-01' });
+      .send({ tenantEmail: tenant.email, unitLabel: 'A1', rentAmount: 50000, moveInDate: '2026-01-01' });
     const leaseId = leaseRes.body.data.id;
 
     const asOf = new Date('2026-01-25T00:00:00.000Z');
@@ -86,7 +86,7 @@ describe('sendDueReminders', () => {
     const leaseRes = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${landlordToken}`)
-      .send({ tenantEmail: tenant.email, rentAmount: 50000, moveInDate: '2026-01-01' });
+      .send({ tenantEmail: tenant.email, unitLabel: 'A1', rentAmount: 50000, moveInDate: '2026-01-01' });
     const leaseId = leaseRes.body.data.id;
 
     const asOf = new Date('2026-01-08T00:00:00.000Z');

@@ -30,7 +30,7 @@ let otherLandlordToken: string;
 let tenantToken: string;
 let propertyId: string;
 
-const validLeaseTerms = { rentAmount: 50000, moveInDate: '2026-01-15' };
+const validLeaseTerms = { unitLabel: 'A1', rentAmount: 50000, moveInDate: '2026-01-15' };
 
 beforeAll(async () => {
   const landlordRes = await request(app).post('/api/v1/auth/register').send(landlord);

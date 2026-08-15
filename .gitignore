@@ -9,3 +9,10 @@ uploads/
 graphify-out/
 .vscode/
 .idea/
+
+.vercel
+.env*
+
+.agents/
+.claude/
+skills-lock.json

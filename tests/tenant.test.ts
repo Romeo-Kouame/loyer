@@ -88,7 +88,7 @@ beforeAll(async () => {
   const leaseRes = await request(app)
     .post(`/api/v1/properties/${propertyId}/leases`)
     .set('Authorization', `Bearer ${landlordToken}`)
-    .send({ tenantEmail: tenant.email, rentAmount: 50000, moveInDate: new Date().toISOString().slice(0, 10), installmentsAllowed: true });
+    .send({ tenantEmail: tenant.email, unitLabel: 'A1', rentAmount: 50000, moveInDate: new Date().toISOString().slice(0, 10), installmentsAllowed: true });
   leaseId = leaseRes.body.data.id;
 });
 

@@ -1,6 +1,8 @@
 import express from 'express';
 import * as authService from '../services/auth.service';
 import { RequestContext } from '../types';
+import { ValidationError } from '../utils/errors';
+import { sendStoredFile } from '../utils/servedFile';
 
 function contextFrom(req: express.Request): RequestContext {
   return { ipAddress: req.ip, userAgent: req.header('user-agent') };
@@ -44,10 +46,32 @@ export async function updateProfileHandler(req: express.Request, res: express.Re
   const user = await authService.updateProfile(
     {
       userId: req.user!.userId,
+      name: req.body.name,
       phone: req.body.phone,
       emailRemindersEnabled: req.body.emailRemindersEnabled,
     },
     contextFrom(req)
   );
   res.status(200).json({ success: true, data: user, timestamp: new Date() });
+}
+
+export async function updateProfilePictureHandler(req: express.Request, res: express.Response): Promise<void> {
+  if (!req.file) {
+    throw new ValidationError('A photo file is required');
+  }
+
+  const user = await authService.updateProfilePicture(
+    {
+      userId: req.user!.userId,
+      path: req.file.path,
+      mimeType: req.file.mimetype,
+    },
+    contextFrom(req)
+  );
+  res.status(200).json({ success: true, data: user, timestamp: new Date() });
+}
+
+export async function profilePictureHandler(req: express.Request, res: express.Response): Promise<void> {
+  const { path, mimeType } = await authService.getProfilePicturePath(req.params.userId);
+  sendStoredFile(res, path, mimeType);
 }

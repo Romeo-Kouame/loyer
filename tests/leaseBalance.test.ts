@@ -70,7 +70,7 @@ describe('GET /api/v1/properties/:id/leases/:leaseId/balance', () => {
     const leaseRes = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${landlordToken}`)
-      .send({ tenantEmail: tenant.email, rentAmount: 50000, moveInDate: toDateOnly(today) });
+      .send({ tenantEmail: tenant.email, unitLabel: 'A1', rentAmount: 50000, moveInDate: toDateOnly(today) });
 
     const leaseId = leaseRes.body.data.id;
 
@@ -94,7 +94,7 @@ describe('GET /api/v1/properties/:id/leases/:leaseId/balance', () => {
     const leaseRes = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${landlordToken}`)
-      .send({ tenantEmail: tenant.email, rentAmount: 50000, moveInDate: toDateOnly(tenDaysAgo) });
+      .send({ tenantEmail: tenant.email, unitLabel: 'A1', rentAmount: 50000, moveInDate: toDateOnly(tenDaysAgo) });
 
     const leaseId = leaseRes.body.data.id;
 
@@ -114,7 +114,7 @@ describe('GET /api/v1/properties/:id/leases/:leaseId/balance', () => {
     const leaseRes = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${landlordToken}`)
-      .send({ tenantEmail: tenant.email, rentAmount: 50000, moveInDate: '2026-01-31' });
+      .send({ tenantEmail: tenant.email, unitLabel: 'A1', rentAmount: 50000, moveInDate: '2026-01-31' });
 
     const leaseId = leaseRes.body.data.id;
 
@@ -137,6 +137,7 @@ describe('Partial payments controlled by installmentsAllowed', () => {
       .set('Authorization', `Bearer ${landlordToken}`)
       .send({
         tenantEmail: tenant.email,
+        unitLabel: 'A1',
         rentAmount: 50000,
         moveInDate: toDateOnly(new Date()),
         installmentsAllowed: true,
@@ -164,6 +165,7 @@ describe('Partial payments controlled by installmentsAllowed', () => {
       .set('Authorization', `Bearer ${landlordToken}`)
       .send({
         tenantEmail: tenant.email,
+        unitLabel: 'A1',
         rentAmount: 50000,
         moveInDate: toDateOnly(new Date()),
         installmentsAllowed: false,

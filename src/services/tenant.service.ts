@@ -10,6 +10,7 @@ export interface TenantLeaseOverview {
   leaseId: string;
   propertyId: string;
   address: string;
+  unitLabel: string | null;
   numberOfApartments: number;
   balance: LeaseBalance;
   landlord: { name: string; email: string; phone: string } | null;
@@ -27,6 +28,7 @@ export async function getMyOverview(tenantId: string): Promise<TenantLeaseOvervi
         leaseId: lease.id,
         propertyId: lease.propertyId,
         address: lease.address,
+        unitLabel: lease.unitLabel,
         numberOfApartments: lease.numberOfApartments,
         balance: await getLeaseBalance(lease.id),
         landlord: landlordUser

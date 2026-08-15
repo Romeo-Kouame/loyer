@@ -7,6 +7,7 @@ export interface LeaseRecord {
   propertyId: string;
   tenantId: string;
   status: LeaseStatus;
+  unitLabel: string | null;
   rentAmount: string;
   moveInDate: string;
   installmentsAllowed: boolean;
@@ -18,21 +19,22 @@ export interface LeaseWithProperty extends LeaseRecord {
   numberOfApartments: number;
 }
 
-const LEASE_COLUMNS = `id, "propertyId", "tenantId", status, "rentAmount",
+const LEASE_COLUMNS = `id, "propertyId", "tenantId", status, "unitLabel", "rentAmount",
   "moveInDate", "installmentsAllowed", "createdAt"`;
 
 export async function createLease(params: {
   propertyId: string;
   tenantId: string;
+  unitLabel: string;
   rentAmount: number;
   moveInDate: string;
   installmentsAllowed: boolean;
 }): Promise<LeaseRecord> {
   const result = await pool.query<LeaseRecord>(
-    `INSERT INTO "leases" ("propertyId", "tenantId", status, "rentAmount", "moveInDate", "installmentsAllowed")
-     VALUES ($1, $2, 'active', $3, $4, $5)
+    `INSERT INTO "leases" ("propertyId", "tenantId", status, "unitLabel", "rentAmount", "moveInDate", "installmentsAllowed")
+     VALUES ($1, $2, 'active', $3, $4, $5, $6)
      RETURNING ${LEASE_COLUMNS}`,
-    [params.propertyId, params.tenantId, params.rentAmount, params.moveInDate, params.installmentsAllowed]
+    [params.propertyId, params.tenantId, params.unitLabel, params.rentAmount, params.moveInDate, params.installmentsAllowed]
   );
   return result.rows[0];
 }
@@ -42,6 +44,15 @@ export async function findActiveLease(propertyId: string, tenantId: string): Pro
     `SELECT ${LEASE_COLUMNS}
      FROM "leases" WHERE "propertyId" = $1 AND "tenantId" = $2 AND status = 'active'`,
     [propertyId, tenantId]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function findActiveLeaseByUnit(propertyId: string, unitLabel: string): Promise<LeaseRecord | null> {
+  const result = await pool.query<LeaseRecord>(
+    `SELECT ${LEASE_COLUMNS}
+     FROM "leases" WHERE "propertyId" = $1 AND "unitLabel" = $2 AND status = 'active'`,
+    [propertyId, unitLabel]
   );
   return result.rows[0] ?? null;
 }
@@ -67,7 +78,7 @@ export async function endLease(id: string): Promise<LeaseRecord> {
 
 export async function findActivePropertiesForTenant(tenantId: string): Promise<LeaseWithProperty[]> {
   const result = await pool.query<LeaseWithProperty>(
-    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt",
+    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."unitLabel", l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt",
             p.address, p."numberOfApartments"
      FROM "leases" l
      JOIN "properties" p ON p.id = l."propertyId"
@@ -94,12 +105,12 @@ export interface LeaseWithTenant extends LeaseRecord {
 
 export async function findActiveLeasesForProperty(propertyId: string): Promise<LeaseWithTenant[]> {
   const result = await pool.query<LeaseWithTenant>(
-    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt",
+    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."unitLabel", l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt",
             u.name AS "tenantName", u.email AS "tenantEmail"
      FROM "leases" l
      JOIN "users" u ON u.id = l."tenantId"
      WHERE l."propertyId" = $1 AND l.status = 'active'
-     ORDER BY l."createdAt" DESC`,
+     ORDER BY l."unitLabel" ASC NULLS LAST, l."createdAt" DESC`,
     [propertyId]
   );
   return result.rows;
@@ -107,7 +118,7 @@ export async function findActiveLeasesForProperty(propertyId: string): Promise<L
 
 export async function findAllActiveLeasesForLandlord(landlordId: string): Promise<LeaseRecord[]> {
   const result = await pool.query<LeaseRecord>(
-    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt"
+    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."unitLabel", l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt"
      FROM "leases" l
      JOIN "properties" p ON p.id = l."propertyId"
      WHERE p."ownerId" = $1 AND l.status = 'active' AND p."deletedAt" IS NULL`,
@@ -135,7 +146,7 @@ export interface ActiveLeaseForReminder extends LeaseRecord {
 
 export async function findAllActiveLeasesWithTenant(): Promise<ActiveLeaseForReminder[]> {
   const result = await pool.query<ActiveLeaseForReminder>(
-    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt",
+    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."unitLabel", l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt",
             u.name AS "tenantName", u.email AS "tenantEmail", p.address
      FROM "leases" l
      JOIN "users" u ON u.id = l."tenantId"

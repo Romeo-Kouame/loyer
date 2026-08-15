@@ -5,6 +5,7 @@ import {
   createLease,
   endLease as endLeaseRecord,
   findActiveLease,
+  findActiveLeaseByUnit,
   findActiveLeasesForProperty,
   findLeaseById,
   LeaseRecord,
@@ -32,6 +33,7 @@ export async function assignTenant(
     propertyId: string;
     tenantEmail?: string;
     tenantPhone?: string;
+    unitLabel: string;
     rentAmount: number;
     moveInDate: string;
     installmentsAllowed: boolean;
@@ -54,9 +56,15 @@ export async function assignTenant(
     throw new ConflictError('This tenant already has an active lease on this property');
   }
 
+  const unitTaken = await findActiveLeaseByUnit(params.propertyId, params.unitLabel);
+  if (unitTaken) {
+    throw new ConflictError('This unit already has an active tenant');
+  }
+
   const lease = await createLease({
     propertyId: params.propertyId,
     tenantId: tenant.id,
+    unitLabel: params.unitLabel,
     rentAmount: params.rentAmount,
     moveInDate: params.moveInDate,
     installmentsAllowed: params.installmentsAllowed,
@@ -67,7 +75,7 @@ export async function assignTenant(
     action: 'lease.created',
     resourceType: 'lease',
     resourceId: lease.id,
-    metadata: { propertyId: params.propertyId, tenantId: tenant.id, rentAmount: params.rentAmount },
+    metadata: { propertyId: params.propertyId, tenantId: tenant.id, unitLabel: params.unitLabel, rentAmount: params.rentAmount },
     ipAddress: context.ipAddress,
     userAgent: context.userAgent,
   });
@@ -202,6 +210,7 @@ export interface ArrearsEntry {
   leaseId: string;
   tenantName: string;
   tenantEmail: string;
+  unitLabel: string | null;
   rentAmount: number;
   balance: number;
   daysOverdue: number;
@@ -225,6 +234,7 @@ export async function getPropertyArrears(params: {
         leaseId: lease.id,
         tenantName: lease.tenantName,
         tenantEmail: lease.tenantEmail,
+        unitLabel: lease.unitLabel,
         rentAmount: Number(lease.rentAmount),
         balance: balance.balance,
         daysOverdue: balance.daysOverdue,

@@ -14,6 +14,7 @@ export async function assignTenantHandler(req: express.Request, res: express.Res
       propertyId: req.params.id,
       tenantEmail: req.body.tenantEmail,
       tenantPhone: req.body.tenantPhone,
+      unitLabel: req.body.unitLabel,
       rentAmount: req.body.rentAmount,
       moveInDate: req.body.moveInDate,
       installmentsAllowed: req.body.installmentsAllowed ?? false,

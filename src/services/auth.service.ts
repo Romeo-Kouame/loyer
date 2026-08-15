@@ -9,6 +9,7 @@ import {
   findUserById,
   updatePassword,
   updateProfile as updateProfileRecord,
+  updateProfilePicture as updateProfilePictureRecord,
   UserRecord,
 } from '../repositories/user.repository';
 import { logAction } from './audit.service';
@@ -32,6 +33,7 @@ function toPublicUser(user: UserRecord) {
     kycReviewedAt: user.kycReviewedAt,
     kycRejectionReason: user.kycRejectionReason,
     emailRemindersEnabled: user.emailRemindersEnabled,
+    hasProfilePicture: Boolean(user.profilePicturePath),
   };
 }
 
@@ -155,10 +157,11 @@ export async function changePassword(
 }
 
 export async function updateProfile(
-  params: { userId: string; phone?: string; emailRemindersEnabled?: boolean },
+  params: { userId: string; name?: string; phone?: string; emailRemindersEnabled?: boolean },
   context: RequestContext = {}
 ) {
   const updated = await updateProfileRecord(params.userId, {
+    name: params.name,
     phone: params.phone,
     emailRemindersEnabled: params.emailRemindersEnabled,
   });
@@ -168,12 +171,38 @@ export async function updateProfile(
     action: 'user.profile_updated',
     resourceType: 'user',
     resourceId: params.userId,
-    metadata: { phone: params.phone, emailRemindersEnabled: params.emailRemindersEnabled },
+    metadata: { name: params.name, phone: params.phone, emailRemindersEnabled: params.emailRemindersEnabled },
     ipAddress: context.ipAddress,
     userAgent: context.userAgent,
   });
 
   return toPublicUser(updated);
+}
+
+export async function updateProfilePicture(
+  params: { userId: string; path: string; mimeType: string },
+  context: RequestContext = {}
+) {
+  const updated = await updateProfilePictureRecord(params.userId, { path: params.path, mimeType: params.mimeType });
+
+  await logAction({
+    userId: params.userId,
+    action: 'user.profile_picture_updated',
+    resourceType: 'user',
+    resourceId: params.userId,
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+  });
+
+  return toPublicUser(updated);
+}
+
+export async function getProfilePicturePath(userId: string): Promise<{ path: string; mimeType: string }> {
+  const user = await findUserById(userId);
+  if (!user || !user.profilePicturePath || !user.profilePictureMimeType) {
+    throw new NotFoundError('No profile picture set');
+  }
+  return { path: user.profilePicturePath, mimeType: user.profilePictureMimeType };
 }
 
 export async function refresh(refreshToken: string): Promise<AuthTokens> {

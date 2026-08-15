@@ -4,12 +4,15 @@ import {
   changePasswordHandler,
   loginHandler,
   meHandler,
+  profilePictureHandler,
   refreshHandler,
   registerHandler,
   updateProfileHandler,
+  updateProfilePictureHandler,
 } from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
+import { uploadProfilePicture } from '../middleware/upload';
 
 const router = express.Router();
 
@@ -36,6 +39,7 @@ const changePasswordSchema = Joi.object({
 });
 
 const updateProfileSchema = Joi.object({
+  name: Joi.string().min(2).max(255).optional(),
   phone: Joi.string().min(8).max(20).optional(),
   emailRemindersEnabled: Joi.boolean().optional(),
 });
@@ -46,5 +50,7 @@ router.post('/refresh', validate(refreshSchema), refreshHandler);
 router.get('/me', authenticate, meHandler);
 router.patch('/password', authenticate, validate(changePasswordSchema), changePasswordHandler);
 router.patch('/profile', authenticate, validate(updateProfileSchema), updateProfileHandler);
+router.post('/profile-picture', authenticate, uploadProfilePicture, updateProfilePictureHandler);
+router.get('/profile-picture/:userId', authenticate, profilePictureHandler);
 
 export default router;

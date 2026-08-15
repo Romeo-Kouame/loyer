@@ -31,6 +31,7 @@ const createPropertySchema = Joi.object({
 const assignTenantSchema = Joi.object({
   tenantEmail: Joi.string().email().optional(),
   tenantPhone: Joi.string().min(8).max(20).optional(),
+  unitLabel: Joi.string().min(1).max(50).required(),
   rentAmount: Joi.number().positive().required(),
   moveInDate: Joi.string()
     .pattern(/^\d{4}-\d{2}-\d{2}$/)

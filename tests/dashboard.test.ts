@@ -66,6 +66,7 @@ beforeAll(async () => {
     .set('Authorization', `Bearer ${landlordToken}`)
     .send({
       tenantEmail: tenant.email,
+      unitLabel: 'A1',
       rentAmount: 60000,
       moveInDate: new Date().toISOString().slice(0, 10),
       installmentsAllowed: true,

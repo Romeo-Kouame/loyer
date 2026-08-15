@@ -19,11 +19,13 @@ export interface UserRecord {
   payoutProvider: PayoutProvider | null;
   payoutPhoneNumber: string | null;
   emailRemindersEnabled: boolean;
+  profilePicturePath: string | null;
+  profilePictureMimeType: string | null;
 }
 
 const USER_COLUMNS = `id, email, phone, name, "passwordHash", role, "kycStatus",
   "kycDocumentPath", "kycDocumentMimeType", "kycSubmittedAt", "kycReviewedAt", "kycRejectionReason",
-  "payoutProvider", "payoutPhoneNumber", "emailRemindersEnabled"`;
+  "payoutProvider", "payoutPhoneNumber", "emailRemindersEnabled", "profilePicturePath", "profilePictureMimeType"`;
 
 export async function findUserByEmail(email: string): Promise<UserRecord | null> {
   const result = await pool.query<UserRecord>(
@@ -122,15 +124,30 @@ export async function updatePassword(userId: string, passwordHash: string): Prom
 
 export async function updateProfile(
   userId: string,
-  params: { phone?: string; emailRemindersEnabled?: boolean }
+  params: { name?: string; phone?: string; emailRemindersEnabled?: boolean }
 ): Promise<UserRecord> {
   const result = await pool.query<UserRecord>(
     `UPDATE "users"
-     SET phone = COALESCE($2, phone),
-         "emailRemindersEnabled" = COALESCE($3, "emailRemindersEnabled")
+     SET name = COALESCE($2, name),
+         phone = COALESCE($3, phone),
+         "emailRemindersEnabled" = COALESCE($4, "emailRemindersEnabled")
      WHERE id = $1
      RETURNING ${USER_COLUMNS}`,
-    [userId, params.phone ?? null, params.emailRemindersEnabled ?? null]
+    [userId, params.name ?? null, params.phone ?? null, params.emailRemindersEnabled ?? null]
+  );
+  return result.rows[0];
+}
+
+export async function updateProfilePicture(
+  userId: string,
+  params: { path: string; mimeType: string }
+): Promise<UserRecord> {
+  const result = await pool.query<UserRecord>(
+    `UPDATE "users"
+     SET "profilePicturePath" = $2, "profilePictureMimeType" = $3
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [userId, params.path, params.mimeType]
   );
   return result.rows[0];
 }

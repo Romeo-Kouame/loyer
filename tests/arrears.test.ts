@@ -92,7 +92,7 @@ describe('GET /api/v1/properties/:id/arrears', () => {
     const leaseRes = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${landlordToken}`)
-      .send({ tenantEmail: tenant.email, rentAmount: 50000, moveInDate: toDateOnly(tenDaysAgo) });
+      .send({ tenantEmail: tenant.email, unitLabel: 'A1', rentAmount: 50000, moveInDate: toDateOnly(tenDaysAgo) });
 
     const response = await request(app)
       .get(`/api/v1/properties/${propertyId}/arrears`)
@@ -115,7 +115,7 @@ describe('GET /api/v1/properties/:id/arrears', () => {
     const leaseRes = await request(app)
       .post(`/api/v1/properties/${propertyId}/leases`)
       .set('Authorization', `Bearer ${landlordToken}`)
-      .send({ tenantEmail: tenant.email, rentAmount: 50000, moveInDate: toDateOnly(new Date()) });
+      .send({ tenantEmail: tenant.email, unitLabel: 'A1', rentAmount: 50000, moveInDate: toDateOnly(new Date()) });
 
     const transactionId = `kpay-arrears-${Date.now()}`;
     mockPost.mockResolvedValueOnce({
