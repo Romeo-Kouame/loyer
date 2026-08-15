@@ -167,6 +167,56 @@ export async function countPendingPaymentsForLandlord(landlordId: string): Promi
   return Number(result.rows[0].count);
 }
 
+export async function monthlyRevenueForLandlord(
+  landlordId: string,
+  months: number
+): Promise<{ month: string; total: number }[]> {
+  const result = await pool.query<{ month: string; total: string }>(
+    `SELECT to_char(date_trunc('month', gs), 'YYYY-MM') AS month,
+            COALESCE(SUM(p.amount) FILTER (WHERE p.id IS NOT NULL), 0) AS total
+     FROM generate_series(
+            date_trunc('month', CURRENT_DATE) - ($2 - 1) * INTERVAL '1 month',
+            date_trunc('month', CURRENT_DATE),
+            INTERVAL '1 month'
+          ) AS gs
+     LEFT JOIN "payments" p
+       ON date_trunc('month', p."createdAt") = date_trunc('month', gs)
+      AND p.status = 'confirmed'
+      AND p."propertyId" IN (SELECT id FROM "properties" WHERE "ownerId" = $1)
+     GROUP BY gs
+     ORDER BY gs ASC`,
+    [landlordId, months]
+  );
+  return result.rows.map((row) => ({ month: row.month, total: Number(row.total) }));
+}
+
+export interface RecentPaymentForLandlord {
+  id: string;
+  amount: string;
+  status: PaymentStatus;
+  createdAt: Date;
+  tenantName: string;
+  propertyAddress: string;
+}
+
+export async function listRecentPaymentsForLandlord(
+  landlordId: string,
+  limit: number
+): Promise<RecentPaymentForLandlord[]> {
+  const result = await pool.query<RecentPaymentForLandlord>(
+    `SELECT p.id, p.amount, p.status, p."createdAt",
+            u.name AS "tenantName", pr.address AS "propertyAddress"
+     FROM "payments" p
+     JOIN "properties" pr ON pr.id = p."propertyId"
+     JOIN "users" u ON u.id = p."tenantId"
+     WHERE pr."ownerId" = $1
+     ORDER BY p."createdAt" DESC
+     LIMIT $2`,
+    [landlordId, limit]
+  );
+  return result.rows;
+}
+
 export async function countPaymentsByStatusForTenant(tenantId: string): Promise<Record<PaymentStatus, number>> {
   const result = await pool.query<{ status: PaymentStatus; count: string }>(
     `SELECT status, COUNT(*) AS count

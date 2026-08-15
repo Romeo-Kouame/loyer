@@ -2,6 +2,9 @@ import { findPropertiesByOwnerId } from '../repositories/property.repository';
 import { countActiveLeasesForLandlord, findAllActiveLeasesForLandlord } from '../repositories/lease.repository';
 import {
   countPendingPaymentsForLandlord,
+  listRecentPaymentsForLandlord,
+  monthlyRevenueForLandlord,
+  RecentPaymentForLandlord,
   sumConfirmedPaymentsForLandlordThisMonth,
 } from '../repositories/payment.repository';
 import { getLeaseBalance } from './lease.service';
@@ -33,4 +36,12 @@ export async function getLandlordDashboard(landlordId: string): Promise<Landlord
     pendingPayments,
     outstandingBalance,
   };
+}
+
+export async function getRevenueHistory(landlordId: string): Promise<{ month: string; total: number }[]> {
+  return monthlyRevenueForLandlord(landlordId, 6);
+}
+
+export async function getRecentPayments(landlordId: string): Promise<RecentPaymentForLandlord[]> {
+  return listRecentPaymentsForLandlord(landlordId, 8);
 }
