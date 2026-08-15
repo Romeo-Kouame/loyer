@@ -1,6 +1,13 @@
 import express from 'express';
 import Joi from 'joi';
-import { loginHandler, meHandler, refreshHandler, registerHandler } from '../controllers/auth.controller';
+import {
+  changePasswordHandler,
+  loginHandler,
+  meHandler,
+  refreshHandler,
+  registerHandler,
+  updateProfileHandler,
+} from '../controllers/auth.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 
@@ -23,9 +30,21 @@ const refreshSchema = Joi.object({
   refreshToken: Joi.string().required(),
 });
 
+const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().required(),
+  newPassword: Joi.string().min(8).required(),
+});
+
+const updateProfileSchema = Joi.object({
+  phone: Joi.string().min(8).max(20).optional(),
+  emailRemindersEnabled: Joi.boolean().optional(),
+});
+
 router.post('/register', validate(registerSchema), registerHandler);
 router.post('/login', validate(loginSchema), loginHandler);
 router.post('/refresh', validate(refreshSchema), refreshHandler);
 router.get('/me', authenticate, meHandler);
+router.patch('/password', authenticate, validate(changePasswordSchema), changePasswordHandler);
+router.patch('/profile', authenticate, validate(updateProfileSchema), updateProfileHandler);
 
 export default router;

@@ -1,12 +1,14 @@
 import { config } from '../config/environment';
-import { findUserByEmail } from '../repositories/user.repository';
+import { findUserByEmail, findUserByPhone } from '../repositories/user.repository';
 import { findPropertyById } from '../repositories/property.repository';
 import {
   createLease,
   endLease as endLeaseRecord,
   findActiveLease,
+  findActiveLeasesForProperty,
   findLeaseById,
   LeaseRecord,
+  LeaseWithTenant,
   sumConfirmedPaymentsForLease,
 } from '../repositories/lease.repository';
 import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
@@ -28,7 +30,8 @@ export async function assignTenant(
   params: {
     landlordId: string;
     propertyId: string;
-    tenantEmail: string;
+    tenantEmail?: string;
+    tenantPhone?: string;
     rentAmount: number;
     moveInDate: string;
     installmentsAllowed: boolean;
@@ -37,9 +40,13 @@ export async function assignTenant(
 ): Promise<LeaseRecord> {
   await assertOwnsProperty(params.propertyId, params.landlordId);
 
-  const tenant = await findUserByEmail(params.tenantEmail);
+  const tenant = params.tenantEmail
+    ? await findUserByEmail(params.tenantEmail)
+    : params.tenantPhone
+      ? await findUserByPhone(params.tenantPhone)
+      : null;
   if (!tenant || tenant.role !== 'tenant') {
-    throw new NotFoundError('No tenant account found with this email');
+    throw new NotFoundError('No tenant account found with this email or phone number');
   }
 
   const existing = await findActiveLease(params.propertyId, tenant.id);
@@ -111,6 +118,10 @@ function addDays(date: Date, days: number): Date {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
+function daysBetween(from: Date, to: Date): number {
+  return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
+}
+
 export interface LeaseBalance {
   rentAmount: number;
   moveInDate: string;
@@ -120,6 +131,7 @@ export interface LeaseBalance {
   totalPaid: number;
   balance: number;
   isLate: boolean;
+  daysOverdue: number;
   currentDueDate: string;
   nextDueDate: string;
 }
@@ -148,6 +160,7 @@ export async function getLeaseBalance(leaseId: string, asOf: Date = new Date()):
 
   const graceDeadline = addDays(currentDueDate, config.rent.gracePeriodDays);
   const isLate = balance > 0 && today > graceDeadline;
+  const daysOverdue = balance > 0 ? Math.max(0, daysBetween(currentDueDate, today)) : 0;
 
   return {
     rentAmount,
@@ -158,6 +171,7 @@ export async function getLeaseBalance(leaseId: string, asOf: Date = new Date()):
     totalPaid,
     balance,
     isLate,
+    daysOverdue,
     currentDueDate: currentDueDate.toISOString().slice(0, 10),
     nextDueDate: nextDueDate.toISOString().slice(0, 10),
   };
@@ -182,4 +196,51 @@ export async function getLeaseBalanceForUser(params: {
   }
 
   return getLeaseBalance(params.leaseId);
+}
+
+export interface ArrearsEntry {
+  leaseId: string;
+  tenantName: string;
+  tenantEmail: string;
+  rentAmount: number;
+  balance: number;
+  daysOverdue: number;
+  isLate: boolean;
+  currentDueDate: string;
+}
+
+export async function getPropertyArrears(params: {
+  propertyId: string;
+  landlordId: string;
+}): Promise<ArrearsEntry[]> {
+  await assertOwnsProperty(params.propertyId, params.landlordId);
+
+  const leases = await findActiveLeasesForProperty(params.propertyId);
+
+  const entries: ArrearsEntry[] = [];
+  for (const lease of leases) {
+    const balance = await getLeaseBalance(lease.id);
+    if (balance.balance > 0) {
+      entries.push({
+        leaseId: lease.id,
+        tenantName: lease.tenantName,
+        tenantEmail: lease.tenantEmail,
+        rentAmount: Number(lease.rentAmount),
+        balance: balance.balance,
+        daysOverdue: balance.daysOverdue,
+        isLate: balance.isLate,
+        currentDueDate: balance.currentDueDate,
+      });
+    }
+  }
+
+  return entries.sort((a, b) => b.daysOverdue - a.daysOverdue);
+}
+
+export async function listActiveTenantsForProperty(params: {
+  propertyId: string;
+  landlordId: string;
+}): Promise<LeaseWithTenant[]> {
+  await assertOwnsProperty(params.propertyId, params.landlordId);
+  return findActiveLeasesForProperty(params.propertyId);
 }

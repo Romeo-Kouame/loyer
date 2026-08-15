@@ -86,3 +86,61 @@ export async function sumConfirmedPaymentsForLease(leaseId: string): Promise<num
   );
   return Number(result.rows[0].total);
 }
+
+export interface LeaseWithTenant extends LeaseRecord {
+  tenantName: string;
+  tenantEmail: string;
+}
+
+export async function findActiveLeasesForProperty(propertyId: string): Promise<LeaseWithTenant[]> {
+  const result = await pool.query<LeaseWithTenant>(
+    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt",
+            u.name AS "tenantName", u.email AS "tenantEmail"
+     FROM "leases" l
+     JOIN "users" u ON u.id = l."tenantId"
+     WHERE l."propertyId" = $1 AND l.status = 'active'
+     ORDER BY l."createdAt" DESC`,
+    [propertyId]
+  );
+  return result.rows;
+}
+
+export async function findAllActiveLeasesForLandlord(landlordId: string): Promise<LeaseRecord[]> {
+  const result = await pool.query<LeaseRecord>(
+    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt"
+     FROM "leases" l
+     JOIN "properties" p ON p.id = l."propertyId"
+     WHERE p."ownerId" = $1 AND l.status = 'active' AND p."deletedAt" IS NULL`,
+    [landlordId]
+  );
+  return result.rows;
+}
+
+export async function countActiveLeasesForLandlord(landlordId: string): Promise<number> {
+  const result = await pool.query<{ count: string }>(
+    `SELECT COUNT(*) AS count
+     FROM "leases" l
+     JOIN "properties" p ON p.id = l."propertyId"
+     WHERE p."ownerId" = $1 AND l.status = 'active' AND p."deletedAt" IS NULL`,
+    [landlordId]
+  );
+  return Number(result.rows[0].count);
+}
+
+export interface ActiveLeaseForReminder extends LeaseRecord {
+  tenantName: string;
+  tenantEmail: string;
+  address: string;
+}
+
+export async function findAllActiveLeasesWithTenant(): Promise<ActiveLeaseForReminder[]> {
+  const result = await pool.query<ActiveLeaseForReminder>(
+    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt",
+            u.name AS "tenantName", u.email AS "tenantEmail", p.address
+     FROM "leases" l
+     JOIN "users" u ON u.id = l."tenantId"
+     JOIN "properties" p ON p.id = l."propertyId"
+     WHERE l.status = 'active' AND p."deletedAt" IS NULL AND u."emailRemindersEnabled" = true`
+  );
+  return result.rows;
+}

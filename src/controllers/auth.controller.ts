@@ -27,3 +27,27 @@ export async function meHandler(req: express.Request, res: express.Response): Pr
   const user = await authService.getCurrentUser(req.user!.userId);
   res.status(200).json({ success: true, data: user, timestamp: new Date() });
 }
+
+export async function changePasswordHandler(req: express.Request, res: express.Response): Promise<void> {
+  await authService.changePassword(
+    {
+      userId: req.user!.userId,
+      currentPassword: req.body.currentPassword,
+      newPassword: req.body.newPassword,
+    },
+    contextFrom(req)
+  );
+  res.status(200).json({ success: true, data: { updated: true }, timestamp: new Date() });
+}
+
+export async function updateProfileHandler(req: express.Request, res: express.Response): Promise<void> {
+  const user = await authService.updateProfile(
+    {
+      userId: req.user!.userId,
+      phone: req.body.phone,
+      emailRemindersEnabled: req.body.emailRemindersEnabled,
+    },
+    contextFrom(req)
+  );
+  res.status(200).json({ success: true, data: user, timestamp: new Date() });
+}

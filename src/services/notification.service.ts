@@ -52,6 +52,62 @@ export async function notifyPropertyVerificationRejected(params: {
   });
 }
 
+export async function notifyRentDueSoon(params: {
+  tenantEmail: string;
+  tenantName: string;
+  propertyAddress: string;
+  dueDate: string;
+  amount: number;
+}): Promise<void> {
+  await sendEmail({
+    to: params.tenantEmail,
+    subject: `Rappel : loyer à payer bientôt - ${params.propertyAddress}`,
+    html: `<p>Bonjour ${params.tenantName},</p><p>Votre loyer de <strong>${params.amount} XOF</strong> pour <strong>${params.propertyAddress}</strong> est dû le <strong>${params.dueDate}</strong>.</p>`,
+  });
+}
+
+export async function notifyRentOverdue(params: {
+  tenantEmail: string;
+  tenantName: string;
+  propertyAddress: string;
+  dueDate: string;
+  amountOwed: number;
+  daysOverdue: number;
+}): Promise<void> {
+  await sendEmail({
+    to: params.tenantEmail,
+    subject: `Loyer en retard (${params.daysOverdue} jours) - ${params.propertyAddress}`,
+    html: `<p>Bonjour ${params.tenantName},</p><p>Votre loyer de <strong>${params.amountOwed} XOF</strong> pour <strong>${params.propertyAddress}</strong> était dû le <strong>${params.dueDate}</strong> et est maintenant en retard de <strong>${params.daysOverdue} jours</strong>.</p>`,
+  });
+}
+
+export async function notifyMaintenanceReported(params: {
+  landlordEmail: string;
+  propertyAddress: string;
+  issueType: string;
+  severity: string;
+  tenantName: string;
+}): Promise<void> {
+  await sendEmail({
+    to: params.landlordEmail,
+    subject: `Nouveau signalement - ${params.propertyAddress}`,
+    html: `<p><strong>${params.tenantName}</strong> a signalé un problème (<strong>${params.issueType}</strong>, sévérité : ${params.severity}) pour <strong>${params.propertyAddress}</strong>.</p>`,
+  });
+}
+
+export async function notifyMaintenanceStatusUpdated(params: {
+  tenantEmail: string;
+  propertyAddress: string;
+  issueType: string;
+  status: string;
+}): Promise<void> {
+  await sendEmail({
+    to: params.tenantEmail,
+    subject: `Mise à jour de votre signalement - ${params.propertyAddress}`,
+    html: `<p>Votre signalement (<strong>${params.issueType}</strong>) pour <strong>${params.propertyAddress}</strong> est maintenant : <strong>${params.status}</strong>.</p>`,
+  });
+}
+
 export async function notifyDisputeResolved(params: {
   tenantEmail: string;
   landlordEmail: string;

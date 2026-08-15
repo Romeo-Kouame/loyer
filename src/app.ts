@@ -15,6 +15,10 @@ import adminPropertyVerificationRoutes from './routes/adminPropertyVerification.
 import payoutRoutes from './routes/payout.routes';
 import adminDisputesRoutes from './routes/adminDisputes.routes';
 import adminRefundsRoutes from './routes/adminRefunds.routes';
+import tenantRoutes from './routes/tenant.routes';
+import landlordRoutes from './routes/landlord.routes';
+import maintenanceRoutes from './routes/maintenance.routes';
+import internalRoutes from './routes/internal.routes';
 
 const app = express();
 
@@ -54,6 +58,10 @@ app.use('/api/v1/admin/property-verifications', adminPropertyVerificationRoutes)
 app.use('/api/v1/payouts', payoutRoutes);
 app.use('/api/v1/admin/disputes', adminDisputesRoutes);
 app.use('/api/v1/admin/refunds', adminRefundsRoutes);
+app.use('/api/v1/tenant', tenantRoutes);
+app.use('/api/v1/landlord', landlordRoutes);
+app.use('/api/v1/maintenance', maintenanceRoutes);
+app.use('/api/v1/internal', internalRoutes);
 
 // 404 handler
 app.use((req, res) => {

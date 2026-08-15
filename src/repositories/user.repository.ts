@@ -18,16 +18,25 @@ export interface UserRecord {
   kycRejectionReason: string | null;
   payoutProvider: PayoutProvider | null;
   payoutPhoneNumber: string | null;
+  emailRemindersEnabled: boolean;
 }
 
 const USER_COLUMNS = `id, email, phone, name, "passwordHash", role, "kycStatus",
   "kycDocumentPath", "kycDocumentMimeType", "kycSubmittedAt", "kycReviewedAt", "kycRejectionReason",
-  "payoutProvider", "payoutPhoneNumber"`;
+  "payoutProvider", "payoutPhoneNumber", "emailRemindersEnabled"`;
 
 export async function findUserByEmail(email: string): Promise<UserRecord | null> {
   const result = await pool.query<UserRecord>(
     `SELECT ${USER_COLUMNS} FROM "users" WHERE email = $1 AND "deletedAt" IS NULL`,
     [email]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function findUserByPhone(phone: string): Promise<UserRecord | null> {
+  const result = await pool.query<UserRecord>(
+    `SELECT ${USER_COLUMNS} FROM "users" WHERE phone = $1 AND "deletedAt" IS NULL`,
+    [phone]
   );
   return result.rows[0] ?? null;
 }
@@ -99,6 +108,29 @@ export async function updatePayoutDestination(
      WHERE id = $1
      RETURNING ${USER_COLUMNS}`,
     [userId, params.payoutProvider, params.payoutPhoneNumber]
+  );
+  return result.rows[0];
+}
+
+export async function updatePassword(userId: string, passwordHash: string): Promise<void> {
+  await pool.query(
+    `UPDATE "users"
+     SET "passwordHash" = $2 WHERE id = $1`,
+    [userId, passwordHash]
+  );
+}
+
+export async function updateProfile(
+  userId: string,
+  params: { phone?: string; emailRemindersEnabled?: boolean }
+): Promise<UserRecord> {
+  const result = await pool.query<UserRecord>(
+    `UPDATE "users"
+     SET phone = COALESCE($2, phone),
+         "emailRemindersEnabled" = COALESCE($3, "emailRemindersEnabled")
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [userId, params.phone ?? null, params.emailRemindersEnabled ?? null]
   );
   return result.rows[0];
 }

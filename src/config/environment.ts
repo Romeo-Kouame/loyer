@@ -16,17 +16,8 @@ export const config = {
   
   database: {
     url: process.env.DATABASE_URL || 'postgresql://user:password@localhost:5432/loyers_db',
-    host: process.env.DB_HOST || 'localhost',
-    port: parseInt(process.env.DB_PORT || '5432'),
-    username: process.env.DB_USERNAME || 'user',
-    password: process.env.DB_PASSWORD || 'password',
-    database: process.env.DB_DATABASE || 'loyers_db',
   },
-  
-  redis: {
-    url: process.env.REDIS_URL || 'redis://localhost:6379',
-  },
-  
+
   jwt: {
     secret: requireEnv('JWT_SECRET'),
     refreshSecret: requireEnv('JWT_REFRESH_SECRET'),

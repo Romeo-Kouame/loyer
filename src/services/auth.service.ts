@@ -3,7 +3,14 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
 import { JwtPayload, RequestContext } from '../types';
 import { ConflictError, NotFoundError, UnauthorizedError } from '../utils/errors';
-import { createUser, findUserByEmail, findUserById, UserRecord } from '../repositories/user.repository';
+import {
+  createUser,
+  findUserByEmail,
+  findUserById,
+  updatePassword,
+  updateProfile as updateProfileRecord,
+  UserRecord,
+} from '../repositories/user.repository';
 import { logAction } from './audit.service';
 
 const PASSWORD_HASH_ROUNDS = 10;
@@ -24,6 +31,7 @@ function toPublicUser(user: UserRecord) {
     kycSubmittedAt: user.kycSubmittedAt,
     kycReviewedAt: user.kycReviewedAt,
     kycRejectionReason: user.kycRejectionReason,
+    emailRemindersEnabled: user.emailRemindersEnabled,
   };
 }
 
@@ -117,6 +125,55 @@ export async function getCurrentUser(userId: string) {
     throw new NotFoundError('User not found');
   }
   return toPublicUser(user);
+}
+
+export async function changePassword(
+  params: { userId: string; currentPassword: string; newPassword: string },
+  context: RequestContext = {}
+): Promise<void> {
+  const user = await findUserById(params.userId);
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  const currentMatches = await bcrypt.compare(params.currentPassword, user.passwordHash);
+  if (!currentMatches) {
+    throw new UnauthorizedError('Current password is incorrect');
+  }
+
+  const newHash = await bcrypt.hash(params.newPassword, PASSWORD_HASH_ROUNDS);
+  await updatePassword(user.id, newHash);
+
+  await logAction({
+    userId: user.id,
+    action: 'user.password_changed',
+    resourceType: 'user',
+    resourceId: user.id,
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+  });
+}
+
+export async function updateProfile(
+  params: { userId: string; phone?: string; emailRemindersEnabled?: boolean },
+  context: RequestContext = {}
+) {
+  const updated = await updateProfileRecord(params.userId, {
+    phone: params.phone,
+    emailRemindersEnabled: params.emailRemindersEnabled,
+  });
+
+  await logAction({
+    userId: params.userId,
+    action: 'user.profile_updated',
+    resourceType: 'user',
+    resourceId: params.userId,
+    metadata: { phone: params.phone, emailRemindersEnabled: params.emailRemindersEnabled },
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+  });
+
+  return toPublicUser(updated);
 }
 
 export async function refresh(refreshToken: string): Promise<AuthTokens> {

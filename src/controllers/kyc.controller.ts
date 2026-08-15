@@ -2,6 +2,7 @@ import express from 'express';
 import * as kycService from '../services/kyc.service';
 import { ValidationError } from '../utils/errors';
 import { KycStatus } from '../repositories/user.repository';
+import { sendStoredFile } from '../utils/servedFile';
 
 export async function submitHandler(req: express.Request, res: express.Response): Promise<void> {
   if (!req.file) {
@@ -27,8 +28,7 @@ export async function documentHandler(req: express.Request, res: express.Respons
     requesterRole: req.user!.role,
   });
 
-  res.setHeader('Content-Type', mimeType);
-  res.sendFile(path);
+  sendStoredFile(res, path, mimeType);
 }
 
 export async function adminListHandler(req: express.Request, res: express.Response): Promise<void> {

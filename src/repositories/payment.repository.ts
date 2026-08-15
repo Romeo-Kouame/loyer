@@ -124,6 +124,63 @@ export async function resolvePaymentDispute(
   return result.rows[0];
 }
 
+export async function listPaymentsForTenant(
+  tenantId: string,
+  params: { limit: number; offset: number }
+): Promise<{ payments: PaymentRecord[]; total: number }> {
+  const countResult = await pool.query<{ count: string }>(
+    `SELECT COUNT(*) AS count
+     FROM "payments" WHERE "tenantId" = $1`,
+    [tenantId]
+  );
+
+  const paymentsResult = await pool.query<PaymentRecord>(
+    `SELECT ${PAYMENT_COLUMNS} FROM "payments" WHERE "tenantId" = $1
+     ORDER BY "createdAt" DESC
+     LIMIT $2 OFFSET $3`,
+    [tenantId, params.limit, params.offset]
+  );
+
+  return { payments: paymentsResult.rows, total: Number(countResult.rows[0].count) };
+}
+
+export async function sumConfirmedPaymentsForLandlordThisMonth(landlordId: string): Promise<number> {
+  const result = await pool.query<{ total: string }>(
+    `SELECT COALESCE(SUM(p.amount), 0) AS total
+     FROM "payments" p
+     JOIN "properties" pr ON pr.id = p."propertyId"
+     WHERE pr."ownerId" = $1 AND p.status = 'confirmed'
+       AND date_trunc('month', p."createdAt") = date_trunc('month', CURRENT_TIMESTAMP)`,
+    [landlordId]
+  );
+  return Number(result.rows[0].total);
+}
+
+export async function countPendingPaymentsForLandlord(landlordId: string): Promise<number> {
+  const result = await pool.query<{ count: string }>(
+    `SELECT COUNT(*) AS count
+     FROM "payments" p
+     JOIN "properties" pr ON pr.id = p."propertyId"
+     WHERE pr."ownerId" = $1 AND p.status = 'pending'`,
+    [landlordId]
+  );
+  return Number(result.rows[0].count);
+}
+
+export async function countPaymentsByStatusForTenant(tenantId: string): Promise<Record<PaymentStatus, number>> {
+  const result = await pool.query<{ status: PaymentStatus; count: string }>(
+    `SELECT status, COUNT(*) AS count
+     FROM "payments" WHERE "tenantId" = $1
+     GROUP BY status`,
+    [tenantId]
+  );
+  const counts: Record<PaymentStatus, number> = { pending: 0, confirmed: 0, failed: 0, disputed: 0, refunded: 0 };
+  for (const row of result.rows) {
+    counts[row.status] = Number(row.count);
+  }
+  return counts;
+}
+
 export async function listDisputedPayments(params: {
   limit: number;
   offset: number;

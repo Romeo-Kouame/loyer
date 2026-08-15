@@ -6,5 +6,6 @@ dist/
 *.log
 coverage/
 uploads/
+graphify-out/
 .vscode/
 .idea/

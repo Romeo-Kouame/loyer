@@ -2,6 +2,7 @@ import express from 'express';
 import * as propertyService from '../services/property.service';
 import { ValidationError } from '../utils/errors';
 import { PropertyVerificationStatus } from '../repositories/property.repository';
+import { sendStoredFile } from '../utils/servedFile';
 
 export async function createHandler(req: express.Request, res: express.Response): Promise<void> {
   const property = await propertyService.addProperty(
@@ -63,8 +64,7 @@ export async function verificationDocumentHandler(req: express.Request, res: exp
     requesterRole: req.user!.role,
   });
 
-  res.setHeader('Content-Type', mimeType);
-  res.sendFile(path);
+  sendStoredFile(res, path, mimeType);
 }
 
 export async function adminListVerificationsHandler(req: express.Request, res: express.Response): Promise<void> {
