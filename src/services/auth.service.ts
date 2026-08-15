@@ -10,6 +10,7 @@ import {
   updatePassword,
   updateProfile as updateProfileRecord,
   updateProfilePicture as updateProfilePictureRecord,
+  UpdateProfileParams,
   UserRecord,
 } from '../repositories/user.repository';
 import { logAction } from './audit.service';
@@ -34,6 +35,19 @@ function toPublicUser(user: UserRecord) {
     kycRejectionReason: user.kycRejectionReason,
     emailRemindersEnabled: user.emailRemindersEnabled,
     hasProfilePicture: Boolean(user.profilePicturePath),
+    firstName: user.firstName,
+    lastName: user.lastName,
+    dateOfBirth: user.dateOfBirth,
+    placeOfBirth: user.placeOfBirth,
+    nationality: user.nationality,
+    idDocumentType: user.idDocumentType,
+    idDocumentNumber: user.idDocumentNumber,
+    activitySector: user.activitySector,
+    profession: user.profession,
+    secondPhone: user.secondPhone,
+    currentAddress: user.currentAddress,
+    emergencyContactName: user.emergencyContactName,
+    emergencyContactPhone: user.emergencyContactPhone,
   };
 }
 
@@ -157,21 +171,17 @@ export async function changePassword(
 }
 
 export async function updateProfile(
-  params: { userId: string; name?: string; phone?: string; emailRemindersEnabled?: boolean },
+  params: { userId: string } & UpdateProfileParams,
   context: RequestContext = {}
 ) {
-  const updated = await updateProfileRecord(params.userId, {
-    name: params.name,
-    phone: params.phone,
-    emailRemindersEnabled: params.emailRemindersEnabled,
-  });
+  const { userId, ...profileParams } = params;
+  const updated = await updateProfileRecord(userId, profileParams);
 
   await logAction({
-    userId: params.userId,
+    userId,
     action: 'user.profile_updated',
     resourceType: 'user',
-    resourceId: params.userId,
-    metadata: { name: params.name, phone: params.phone, emailRemindersEnabled: params.emailRemindersEnabled },
+    resourceId: userId,
     ipAddress: context.ipAddress,
     userAgent: context.userAgent,
   });

@@ -20,6 +20,7 @@ import landlordRoutes from './routes/landlord.routes';
 import maintenanceRoutes from './routes/maintenance.routes';
 import internalRoutes from './routes/internal.routes';
 import messagesRoutes from './routes/messages.routes';
+import adminRoutes from './routes/admin.routes';
 
 const app = express();
 
@@ -64,6 +65,7 @@ app.use('/api/v1/landlord', landlordRoutes);
 app.use('/api/v1/maintenance', maintenanceRoutes);
 app.use('/api/v1/internal', internalRoutes);
 app.use('/api/v1/messages', messagesRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -42,6 +42,19 @@ const updateProfileSchema = Joi.object({
   name: Joi.string().min(2).max(255).optional(),
   phone: Joi.string().min(8).max(20).optional(),
   emailRemindersEnabled: Joi.boolean().optional(),
+  firstName: Joi.string().min(1).max(100).optional(),
+  lastName: Joi.string().min(1).max(100).optional(),
+  dateOfBirth: Joi.date().iso().max('now').optional(),
+  placeOfBirth: Joi.string().min(1).max(150).optional(),
+  nationality: Joi.string().min(1).max(100).optional(),
+  idDocumentType: Joi.string().valid('cni', 'passport').optional(),
+  idDocumentNumber: Joi.string().min(1).max(50).optional(),
+  activitySector: Joi.string().min(1).max(150).optional(),
+  profession: Joi.string().min(1).max(150).optional(),
+  secondPhone: Joi.string().min(8).max(30).optional(),
+  currentAddress: Joi.string().min(1).max(255).optional(),
+  emergencyContactName: Joi.string().min(1).max(150).optional(),
+  emergencyContactPhone: Joi.string().min(8).max(30).optional(),
 });
 
 router.post('/register', validate(registerSchema), registerHandler);

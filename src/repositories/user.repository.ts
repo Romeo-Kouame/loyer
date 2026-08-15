@@ -3,6 +3,8 @@ import { pool } from '../config/database';
 export type KycStatus = 'pending' | 'verified' | 'rejected';
 export type PayoutProvider = 'mtn' | 'orange';
 
+export type IdDocumentType = 'cni' | 'passport';
+
 export interface UserRecord {
   id: string;
   email: string;
@@ -21,11 +23,26 @@ export interface UserRecord {
   emailRemindersEnabled: boolean;
   profilePicturePath: string | null;
   profilePictureMimeType: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  dateOfBirth: string | null;
+  placeOfBirth: string | null;
+  nationality: string | null;
+  idDocumentType: IdDocumentType | null;
+  idDocumentNumber: string | null;
+  activitySector: string | null;
+  profession: string | null;
+  secondPhone: string | null;
+  currentAddress: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
 }
 
 const USER_COLUMNS = `id, email, phone, name, "passwordHash", role, "kycStatus",
   "kycDocumentPath", "kycDocumentMimeType", "kycSubmittedAt", "kycReviewedAt", "kycRejectionReason",
-  "payoutProvider", "payoutPhoneNumber", "emailRemindersEnabled", "profilePicturePath", "profilePictureMimeType"`;
+  "payoutProvider", "payoutPhoneNumber", "emailRemindersEnabled", "profilePicturePath", "profilePictureMimeType",
+  "firstName", "lastName", "dateOfBirth", "placeOfBirth", "nationality", "idDocumentType", "idDocumentNumber",
+  "activitySector", "profession", "secondPhone", "currentAddress", "emergencyContactName", "emergencyContactPhone"`;
 
 export async function findUserByEmail(email: string): Promise<UserRecord | null> {
   const result = await pool.query<UserRecord>(
@@ -122,18 +139,65 @@ export async function updatePassword(userId: string, passwordHash: string): Prom
   );
 }
 
-export async function updateProfile(
-  userId: string,
-  params: { name?: string; phone?: string; emailRemindersEnabled?: boolean }
-): Promise<UserRecord> {
+export interface UpdateProfileParams {
+  name?: string;
+  phone?: string;
+  emailRemindersEnabled?: boolean;
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  placeOfBirth?: string;
+  nationality?: string;
+  idDocumentType?: IdDocumentType;
+  idDocumentNumber?: string;
+  activitySector?: string;
+  profession?: string;
+  secondPhone?: string;
+  currentAddress?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+}
+
+export async function updateProfile(userId: string, params: UpdateProfileParams): Promise<UserRecord> {
   const result = await pool.query<UserRecord>(
     `UPDATE "users"
      SET name = COALESCE($2, name),
          phone = COALESCE($3, phone),
-         "emailRemindersEnabled" = COALESCE($4, "emailRemindersEnabled")
+         "emailRemindersEnabled" = COALESCE($4, "emailRemindersEnabled"),
+         "firstName" = COALESCE($5, "firstName"),
+         "lastName" = COALESCE($6, "lastName"),
+         "dateOfBirth" = COALESCE($7, "dateOfBirth")::date,
+         "placeOfBirth" = COALESCE($8, "placeOfBirth"),
+         "nationality" = COALESCE($9, "nationality"),
+         "idDocumentType" = COALESCE($10, "idDocumentType"),
+         "idDocumentNumber" = COALESCE($11, "idDocumentNumber"),
+         "activitySector" = COALESCE($12, "activitySector"),
+         "profession" = COALESCE($13, "profession"),
+         "secondPhone" = COALESCE($14, "secondPhone"),
+         "currentAddress" = COALESCE($15, "currentAddress"),
+         "emergencyContactName" = COALESCE($16, "emergencyContactName"),
+         "emergencyContactPhone" = COALESCE($17, "emergencyContactPhone")
      WHERE id = $1
      RETURNING ${USER_COLUMNS}`,
-    [userId, params.name ?? null, params.phone ?? null, params.emailRemindersEnabled ?? null]
+    [
+      userId,
+      params.name ?? null,
+      params.phone ?? null,
+      params.emailRemindersEnabled ?? null,
+      params.firstName ?? null,
+      params.lastName ?? null,
+      params.dateOfBirth ?? null,
+      params.placeOfBirth ?? null,
+      params.nationality ?? null,
+      params.idDocumentType ?? null,
+      params.idDocumentNumber ?? null,
+      params.activitySector ?? null,
+      params.profession ?? null,
+      params.secondPhone ?? null,
+      params.currentAddress ?? null,
+      params.emergencyContactName ?? null,
+      params.emergencyContactPhone ?? null,
+    ]
   );
   return result.rows[0];
 }

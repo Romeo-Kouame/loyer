@@ -37,6 +37,8 @@ const assignTenantSchema = Joi.object({
     .pattern(/^\d{4}-\d{2}-\d{2}$/)
     .required(),
   installmentsAllowed: Joi.boolean().optional(),
+  depositAmount: Joi.number().min(0).optional(),
+  advanceRentAmount: Joi.number().min(0).optional(),
 }).or('tenantEmail', 'tenantPhone');
 
 const sendMessageSchema = Joi.object({

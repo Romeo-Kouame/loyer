@@ -18,6 +18,8 @@ export async function assignTenantHandler(req: express.Request, res: express.Res
       rentAmount: req.body.rentAmount,
       moveInDate: req.body.moveInDate,
       installmentsAllowed: req.body.installmentsAllowed ?? false,
+      depositAmount: req.body.depositAmount,
+      advanceRentAmount: req.body.advanceRentAmount,
     },
     contextFrom(req)
   );

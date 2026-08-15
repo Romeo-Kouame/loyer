@@ -44,12 +44,7 @@ export async function changePasswordHandler(req: express.Request, res: express.R
 
 export async function updateProfileHandler(req: express.Request, res: express.Response): Promise<void> {
   const user = await authService.updateProfile(
-    {
-      userId: req.user!.userId,
-      name: req.body.name,
-      phone: req.body.phone,
-      emailRemindersEnabled: req.body.emailRemindersEnabled,
-    },
+    { userId: req.user!.userId, ...req.body },
     contextFrom(req)
   );
   res.status(200).json({ success: true, data: user, timestamp: new Date() });

@@ -1,0 +1,13 @@
+ALTER TABLE "users" ADD COLUMN "firstName" VARCHAR(100);
+ALTER TABLE "users" ADD COLUMN "lastName" VARCHAR(100);
+ALTER TABLE "users" ADD COLUMN "dateOfBirth" DATE;
+ALTER TABLE "users" ADD COLUMN "placeOfBirth" VARCHAR(150);
+ALTER TABLE "users" ADD COLUMN "nationality" VARCHAR(100);
+ALTER TABLE "users" ADD COLUMN "idDocumentType" VARCHAR(20);
+ALTER TABLE "users" ADD COLUMN "idDocumentNumber" VARCHAR(50);
+ALTER TABLE "users" ADD COLUMN "activitySector" VARCHAR(150);
+ALTER TABLE "users" ADD COLUMN "profession" VARCHAR(150);
+ALTER TABLE "users" ADD COLUMN "secondPhone" VARCHAR(30);
+ALTER TABLE "users" ADD COLUMN "currentAddress" VARCHAR(255);
+ALTER TABLE "users" ADD COLUMN "emergencyContactName" VARCHAR(150);
+ALTER TABLE "users" ADD COLUMN "emergencyContactPhone" VARCHAR(30);

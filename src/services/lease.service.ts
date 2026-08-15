@@ -12,7 +12,7 @@ import {
   LeaseWithTenant,
   sumConfirmedPaymentsForLease,
 } from '../repositories/lease.repository';
-import { ConflictError, ForbiddenError, NotFoundError } from '../utils/errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import { RequestContext } from '../types';
 import { logAction } from './audit.service';
 
@@ -27,6 +27,11 @@ async function assertOwnsProperty(propertyId: string, landlordId: string) {
   return property;
 }
 
+// Côte d'Ivoire caps the security deposit and advance rent a landlord can
+// demand up front at 2 months' rent each.
+const MAX_DEPOSIT_MONTHS = 2;
+const MAX_ADVANCE_RENT_MONTHS = 2;
+
 export async function assignTenant(
   params: {
     landlordId: string;
@@ -37,10 +42,22 @@ export async function assignTenant(
     rentAmount: number;
     moveInDate: string;
     installmentsAllowed: boolean;
+    depositAmount?: number;
+    advanceRentAmount?: number;
   },
   context: RequestContext = {}
 ): Promise<LeaseRecord> {
   await assertOwnsProperty(params.propertyId, params.landlordId);
+
+  if (params.depositAmount !== undefined && params.depositAmount > params.rentAmount * MAX_DEPOSIT_MONTHS) {
+    throw new ValidationError(`Security deposit cannot exceed ${MAX_DEPOSIT_MONTHS} months' rent`);
+  }
+  if (
+    params.advanceRentAmount !== undefined &&
+    params.advanceRentAmount > params.rentAmount * MAX_ADVANCE_RENT_MONTHS
+  ) {
+    throw new ValidationError(`Advance rent cannot exceed ${MAX_ADVANCE_RENT_MONTHS} months' rent`);
+  }
 
   const tenant = params.tenantEmail
     ? await findUserByEmail(params.tenantEmail)
@@ -68,6 +85,8 @@ export async function assignTenant(
     rentAmount: params.rentAmount,
     moveInDate: params.moveInDate,
     installmentsAllowed: params.installmentsAllowed,
+    depositAmount: params.depositAmount,
+    advanceRentAmount: params.advanceRentAmount,
   });
 
   await logAction({
