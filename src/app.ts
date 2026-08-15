@@ -24,9 +24,28 @@ import adminRoutes from './routes/admin.routes';
 
 const app = express();
 
+// Allows the configured origin plus any Vercel preview URL for this
+// frontend project, so preview deployments can be reviewed before the
+// change they contain is promoted to production.
+const PREVIEW_ORIGIN_PATTERN = /^https:\/\/loyer-frontend-[a-z0-9]+-romeo-kouame-s-projects\.vercel\.app$/;
+
+function isAllowedOrigin(origin: string): boolean {
+  return origin === config.cors.origin || PREVIEW_ORIGIN_PATTERN.test(origin);
+}
+
 // Middleware
 app.use(helmet());
-app.use(cors({ origin: config.cors.origin }));
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || isAllowedOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error('Not allowed by CORS'));
+    },
+  })
+);
 // Raw body needed here (before express.json()) to verify the K-Pay webhook signature
 app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json());
