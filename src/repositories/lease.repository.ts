@@ -138,6 +138,28 @@ export async function countActiveLeasesForLandlord(landlordId: string): Promise<
   return Number(result.rows[0].count);
 }
 
+export interface LeaseWithTenantAndProperty extends LeaseRecord {
+  tenantName: string;
+  tenantEmail: string;
+  address: string;
+}
+
+export async function findAllActiveLeasesForLandlordWithDetails(
+  landlordId: string
+): Promise<LeaseWithTenantAndProperty[]> {
+  const result = await pool.query<LeaseWithTenantAndProperty>(
+    `SELECT l.id, l."propertyId", l."tenantId", l.status, l."unitLabel", l."rentAmount", l."moveInDate", l."installmentsAllowed", l."createdAt",
+            u.name AS "tenantName", u.email AS "tenantEmail", p.address
+     FROM "leases" l
+     JOIN "users" u ON u.id = l."tenantId"
+     JOIN "properties" p ON p.id = l."propertyId"
+     WHERE p."ownerId" = $1 AND l.status = 'active' AND p."deletedAt" IS NULL
+     ORDER BY l."createdAt" DESC`,
+    [landlordId]
+  );
+  return result.rows;
+}
+
 export interface ActiveLeaseForReminder extends LeaseRecord {
   tenantName: string;
   tenantEmail: string;
