@@ -7,7 +7,7 @@ import { findUserById } from '../repositories/user.repository';
 import { getLeaseBalance } from './lease.service';
 import { logAction } from './audit.service';
 import { createPayoutForPayment, handlePayoutWebhookUpdate } from './payout.service';
-import { notifyPaymentConfirmed } from './notification.service';
+import { createInAppNotification, notifyPaymentConfirmed } from './notification.service';
 import { RequestContext } from '../types';
 import {
   createPendingPayment,
@@ -75,6 +75,14 @@ async function notifyPaymentConfirmedForPayment(payment: PaymentRecord): Promise
     landlordEmail: landlord.email,
     propertyAddress: property.address,
     amount: payment.amount,
+  });
+
+  await createInAppNotification({
+    userId: landlord.id,
+    type: 'payment_received',
+    title: 'Paiement reçu',
+    body: `${tenant.name} a payé ${payment.amount} FCFA pour ${property.address}.`,
+    propertyId: property.id,
   });
 }
 

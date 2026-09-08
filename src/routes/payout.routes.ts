@@ -16,6 +16,6 @@ const destinationSchema = Joi.object({
 router.use(authenticate);
 router.patch('/destination', authorize('landlord'), validate(destinationSchema), setDestinationHandler);
 router.get('/', authorize('landlord'), listMyPayoutsHandler);
-router.post('/:id/retry', retryPayoutHandler);
+router.post('/:id/retry', authorize('landlord'), retryPayoutHandler);
 
 export default router;

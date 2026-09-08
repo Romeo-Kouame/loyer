@@ -30,6 +30,11 @@ export async function meHandler(req: express.Request, res: express.Response): Pr
   res.status(200).json({ success: true, data: user, timestamp: new Date() });
 }
 
+export async function activatePremiumHandler(req: express.Request, res: express.Response): Promise<void> {
+  const result = await authService.activatePremiumForUser(req.user!.userId);
+  res.status(200).json({ success: true, data: result, timestamp: new Date() });
+}
+
 export async function changePasswordHandler(req: express.Request, res: express.Response): Promise<void> {
   await authService.changePassword(
     {
@@ -67,6 +72,6 @@ export async function updateProfilePictureHandler(req: express.Request, res: exp
 }
 
 export async function profilePictureHandler(req: express.Request, res: express.Response): Promise<void> {
-  const { path, mimeType } = await authService.getProfilePicturePath(req.params.userId);
+  const { path, mimeType } = await authService.getProfilePicturePath(req.params.userId, req.user!.userId);
   sendStoredFile(res, path, mimeType);
 }

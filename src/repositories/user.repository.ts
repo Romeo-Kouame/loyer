@@ -12,6 +12,7 @@ export interface UserRecord {
   name: string;
   passwordHash: string;
   role: 'landlord' | 'tenant' | 'admin';
+  isPremium: boolean;
   kycStatus: KycStatus;
   kycDocumentPath: string | null;
   kycDocumentMimeType: string | null;
@@ -38,7 +39,7 @@ export interface UserRecord {
   emergencyContactPhone: string | null;
 }
 
-const USER_COLUMNS = `id, email, phone, name, "passwordHash", role, "kycStatus",
+const USER_COLUMNS = `id, email, phone, name, "passwordHash", role, "isPremium", "kycStatus",
   "kycDocumentPath", "kycDocumentMimeType", "kycSubmittedAt", "kycReviewedAt", "kycRejectionReason",
   "payoutProvider", "payoutPhoneNumber", "emailRemindersEnabled", "profilePicturePath", "profilePictureMimeType",
   "firstName", "lastName", "dateOfBirth", "placeOfBirth", "nationality", "idDocumentType", "idDocumentNumber",
@@ -213,6 +214,18 @@ export async function updateProfilePicture(
      RETURNING ${USER_COLUMNS}`,
     [userId, params.path, params.mimeType]
   );
+  return result.rows[0];
+}
+
+export async function activatePremium(userId: string): Promise<UserRecord> {
+  const result = await pool.query<UserRecord>(
+    `UPDATE "users"
+     SET "isPremium" = TRUE
+     WHERE id = $1
+     RETURNING ${USER_COLUMNS}`,
+    [userId]
+  );
+
   return result.rows[0];
 }
 

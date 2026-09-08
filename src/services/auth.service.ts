@@ -2,8 +2,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
 import { JwtPayload, RequestContext } from '../types';
-import { ConflictError, NotFoundError, UnauthorizedError } from '../utils/errors';
+import { ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from '../utils/errors';
 import {
+  activatePremium,
   createUser,
   findUserByEmail,
   findUserById,
@@ -29,6 +30,7 @@ function toPublicUser(user: UserRecord) {
     phone: user.phone,
     name: user.name,
     role: user.role,
+    isPremium: Boolean(user.isPremium),
     kycStatus: user.kycStatus,
     kycSubmittedAt: user.kycSubmittedAt,
     kycReviewedAt: user.kycReviewedAt,
@@ -52,7 +54,7 @@ function toPublicUser(user: UserRecord) {
 }
 
 function signTokens(user: UserRecord): AuthTokens {
-  const payload: JwtPayload = { userId: user.id, email: user.email, role: user.role };
+  const payload: JwtPayload = { userId: user.id, email: user.email, role: user.role, isPremium: Boolean(user.isPremium) };
 
   const accessToken = jwt.sign(payload, config.jwt.secret, { expiresIn: config.jwt.expiry } as jwt.SignOptions);
   const refreshToken = jwt.sign(payload, config.jwt.refreshSecret, {
@@ -143,6 +145,19 @@ export async function getCurrentUser(userId: string) {
   return toPublicUser(user);
 }
 
+export async function activatePremiumForUser(userId: string) {
+  const user = await findUserById(userId);
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+
+  const updated = await activatePremium(userId);
+  return {
+    user: toPublicUser(updated),
+    tokens: signTokens(updated),
+  };
+}
+
 export async function changePassword(
   params: { userId: string; currentPassword: string; newPassword: string },
   context: RequestContext = {}
@@ -207,7 +222,14 @@ export async function updateProfilePicture(
   return toPublicUser(updated);
 }
 
-export async function getProfilePicturePath(userId: string): Promise<{ path: string; mimeType: string }> {
+export async function getProfilePicturePath(
+  userId: string,
+  requesterId: string
+): Promise<{ path: string; mimeType: string }> {
+  if (userId !== requesterId) {
+    throw new ForbiddenError('You do not have permission to view this profile picture');
+  }
+
   const user = await findUserById(userId);
   if (!user || !user.profilePicturePath || !user.profilePictureMimeType) {
     throw new NotFoundError('No profile picture set');

@@ -62,3 +62,51 @@ describe('POST /api/v1/auth/login', () => {
     expect(response.body.error.code).toBe('UNAUTHORIZED');
   });
 });
+
+describe('Dashboard analytics access', () => {
+  it('allows dashboard analytics for a non-premium landlord', async () => {
+    const premiumUser = {
+      email: `premium-guard-${Date.now()}@example.com`,
+      phone: `+2250700${Date.now().toString().slice(-6)}`,
+      name: 'Premium Guard User',
+      password: 'password123',
+      role: 'landlord',
+    };
+
+    const registerResponse = await request(app).post('/api/v1/auth/register').send(premiumUser);
+    const token = registerResponse.body.data.tokens.accessToken;
+
+    const response = await request(app)
+      .get('/api/v1/landlord/dashboard/revenue-history')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+
+    await pool.query('DELETE FROM "users" WHERE email = $1', [premiumUser.email]);
+  });
+
+  it('activates premium access and returns fresh tokens', async () => {
+    const premiumUser = {
+      email: `premium-activate-${Date.now()}@example.com`,
+      phone: `+2250701${Date.now().toString().slice(-6)}`,
+      name: 'Premium Activation User',
+      password: 'password123',
+      role: 'landlord',
+    };
+
+    const registerResponse = await request(app).post('/api/v1/auth/register').send(premiumUser);
+    const token = registerResponse.body.data.tokens.accessToken;
+
+    const response = await request(app)
+      .post('/api/v1/auth/premium/activate')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.user.isPremium).toBe(true);
+    expect(response.body.data.tokens.accessToken).toBeDefined();
+    expect(response.body.data.tokens.refreshToken).toBeDefined();
+
+    await pool.query('DELETE FROM "users" WHERE email = $1', [premiumUser.email]);
+  });
+});

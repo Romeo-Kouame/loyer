@@ -2,16 +2,22 @@ import { findActiveLease } from '../repositories/lease.repository';
 import { findPropertyById } from '../repositories/property.repository';
 import { findUserById } from '../repositories/user.repository';
 import {
+  countPendingRequestsForLandlord,
+  createComment,
   createMaintenanceRequest,
   findMaintenanceRequestById,
+  listCommentsForRequest,
   listMaintenanceRequestsForLandlord,
   listMaintenanceRequestsForTenant,
+  MaintenanceCommentWithAuthor,
   MaintenanceRequestRecord,
+  MaintenanceRequestWithPropertyRecord,
   MaintenanceSeverity,
   MaintenanceStatus,
+  updateMaintenanceRequestSeverity,
   updateMaintenanceRequestStatus,
 } from '../repositories/maintenance.repository';
-import { notifyMaintenanceReported, notifyMaintenanceStatusUpdated } from './notification.service';
+import { createInAppNotification, notifyMaintenanceReported, notifyMaintenanceStatusUpdated } from './notification.service';
 import { logAction } from './audit.service';
 import { ForbiddenError, NotFoundError } from '../utils/errors';
 import { RequestContext } from '../types';
@@ -65,6 +71,14 @@ export async function reportIssue(
         severity: params.severity,
         tenantName: tenant.name,
       });
+
+      await createInAppNotification({
+        userId: landlord.id,
+        type: 'maintenance_reported',
+        title: 'Nouveau signalement',
+        body: `${tenant.name} a signalé un problème (${params.issueType}) pour ${property.address}.`,
+        propertyId: property.id,
+      });
     }
   }
 
@@ -75,7 +89,7 @@ export async function listMyRequests(tenantId: string): Promise<MaintenanceReque
   return listMaintenanceRequestsForTenant(tenantId);
 }
 
-export async function listRequestsForLandlord(landlordId: string): Promise<MaintenanceRequestRecord[]> {
+export async function listRequestsForLandlord(landlordId: string): Promise<MaintenanceRequestWithPropertyRecord[]> {
   return listMaintenanceRequestsForLandlord(landlordId);
 }
 
@@ -118,6 +132,85 @@ export async function updateStatus(
   }
 
   return updated;
+}
+
+export async function countPendingForLandlord(landlordId: string): Promise<number> {
+  return countPendingRequestsForLandlord(landlordId);
+}
+
+export async function updateSeverity(
+  params: { requestId: string; landlordId: string; severity: MaintenanceSeverity },
+  context: RequestContext = {}
+): Promise<MaintenanceRequestRecord> {
+  const request = await findMaintenanceRequestById(params.requestId);
+  if (!request) {
+    throw new NotFoundError('Maintenance request not found');
+  }
+
+  const property = await findPropertyById(request.propertyId);
+  if (!property || property.ownerId !== params.landlordId) {
+    throw new ForbiddenError('You do not have permission to manage this request');
+  }
+
+  const updated = await updateMaintenanceRequestSeverity(params.requestId, params.severity);
+
+  await logAction({
+    userId: params.landlordId,
+    action: 'maintenance.severity_updated',
+    resourceType: 'maintenance_request',
+    resourceId: request.id,
+    metadata: { from: request.severity, to: params.severity },
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+  });
+
+  return updated;
+}
+
+async function assertCanAccessRequest(params: {
+  requestId: string;
+  userId: string;
+  role: string;
+}): Promise<MaintenanceRequestRecord> {
+  const request = await findMaintenanceRequestById(params.requestId);
+  if (!request) {
+    throw new NotFoundError('Maintenance request not found');
+  }
+
+  const isReporter = request.reportedBy === params.userId;
+  let isLandlord = false;
+  if (params.role === 'landlord') {
+    const property = await findPropertyById(request.propertyId);
+    isLandlord = property?.ownerId === params.userId;
+  }
+
+  if (!isReporter && !isLandlord) {
+    throw new ForbiddenError('You do not have permission to view this request');
+  }
+
+  return request;
+}
+
+export async function listComments(params: {
+  requestId: string;
+  userId: string;
+  role: string;
+}): Promise<MaintenanceCommentWithAuthor[]> {
+  await assertCanAccessRequest(params);
+  return listCommentsForRequest(params.requestId);
+}
+
+export async function addComment(params: {
+  requestId: string;
+  userId: string;
+  role: string;
+  body: string;
+}): Promise<MaintenanceCommentWithAuthor[]> {
+  const request = await assertCanAccessRequest(params);
+
+  await createComment({ requestId: request.id, authorId: params.userId, body: params.body });
+
+  return listCommentsForRequest(request.id);
 }
 
 export async function getPhotoPath(params: {

@@ -217,6 +217,14 @@ export async function listRecentPaymentsForLandlord(
   return result.rows;
 }
 
+export async function listConfirmedPaymentDatesForLease(leaseId: string): Promise<Date[]> {
+  const result = await pool.query<{ createdAt: Date }>(
+    `SELECT "createdAt" FROM "payments" WHERE "leaseId" = $1 AND status = 'confirmed' ORDER BY "createdAt" ASC`,
+    [leaseId]
+  );
+  return result.rows.map((row) => row.createdAt);
+}
+
 export async function countPaymentsByStatusForTenant(tenantId: string): Promise<Record<PaymentStatus, number>> {
   const result = await pool.query<{ status: PaymentStatus; count: string }>(
     `SELECT status, COUNT(*) AS count

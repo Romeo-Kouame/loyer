@@ -2,6 +2,7 @@ import express from 'express';
 import * as leaseService from '../services/lease.service';
 import * as messageService from '../services/message.service';
 import * as scoreService from '../services/score.service';
+import * as leaseAgreementService from '../services/leaseAgreement.service';
 
 function contextFrom(req: express.Request) {
   return { ipAddress: req.ip, userAgent: req.header('user-agent') };
@@ -86,6 +87,32 @@ export async function sendMessageHandler(req: express.Request, res: express.Resp
   });
 
   res.status(201).json({ success: true, data: message, timestamp: new Date() });
+}
+
+export async function getLeaseAgreementHandler(req: express.Request, res: express.Response): Promise<void> {
+  const agreement = await leaseAgreementService.getOrCreateAgreement({
+    propertyId: req.params.id,
+    leaseId: req.params.leaseId,
+    userId: req.user!.userId,
+    role: req.user!.role,
+  });
+
+  res.status(200).json({ success: true, data: agreement, timestamp: new Date() });
+}
+
+export async function signLeaseAgreementHandler(req: express.Request, res: express.Response): Promise<void> {
+  const agreement = await leaseAgreementService.signAgreement(
+    {
+      propertyId: req.params.id,
+      leaseId: req.params.leaseId,
+      userId: req.user!.userId,
+      role: req.user!.role,
+      fullName: req.body.fullName,
+    },
+    contextFrom(req)
+  );
+
+  res.status(200).json({ success: true, data: agreement, timestamp: new Date() });
 }
 
 export async function endLeaseHandler(req: express.Request, res: express.Response): Promise<void> {

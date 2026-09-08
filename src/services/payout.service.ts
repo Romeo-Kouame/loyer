@@ -18,7 +18,7 @@ import {
 import { ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import { logger } from '../utils/logger';
 import { logAction } from './audit.service';
-import { notifyPayoutCompleted } from './notification.service';
+import { createInAppNotification, notifyPayoutCompleted } from './notification.service';
 import { RequestContext } from '../types';
 
 const kpayClient = axios.create({
@@ -255,6 +255,19 @@ export async function handlePayoutWebhookUpdate(payload: {
     if (landlord) {
       await notifyPayoutCompleted({ landlordEmail: landlord.email, payoutAmount: payout.payoutAmount });
     }
+    await createInAppNotification({
+      userId: payout.landlordId,
+      type: 'payout_completed',
+      title: 'Reversement effectué',
+      body: `${payout.payoutAmount} FCFA ont été reversés sur votre compte.`,
+    });
+  } else {
+    await createInAppNotification({
+      userId: payout.landlordId,
+      type: 'payout_failed',
+      title: 'Échec du reversement',
+      body: `Le reversement de ${payout.payoutAmount} FCFA a échoué. Vérifiez votre destination de reversement.`,
+    });
   }
 
   return true;

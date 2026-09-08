@@ -2,6 +2,7 @@ import express from 'express';
 import Joi from 'joi';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
+import { paymentInitiateRateLimiter } from '../middleware/rateLimiters';
 import { initiateHandler, receiptHandler, statusHandler, webhookHandler } from '../controllers/payments.controller';
 import { openHandler as openDisputeHandler } from '../controllers/dispute.controller';
 
@@ -20,7 +21,14 @@ const disputeSchema = Joi.object({
 });
 
 router.post('/webhook', webhookHandler);
-router.post('/initiate', authenticate, authorize('tenant'), validate(initiateSchema), initiateHandler);
+router.post(
+  '/initiate',
+  authenticate,
+  authorize('tenant'),
+  paymentInitiateRateLimiter,
+  validate(initiateSchema),
+  initiateHandler
+);
 router.get('/:id', authenticate, statusHandler);
 router.get('/:id/receipt', authenticate, receiptHandler);
 router.post('/:id/dispute', authenticate, validate(disputeSchema), openDisputeHandler);

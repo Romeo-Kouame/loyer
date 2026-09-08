@@ -1,6 +1,7 @@
 import express from 'express';
 import Joi from 'joi';
 import {
+  activatePremiumHandler,
   changePasswordHandler,
   loginHandler,
   meHandler,
@@ -13,6 +14,7 @@ import {
 import { authenticate } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import { uploadProfilePicture } from '../middleware/upload';
+import { authRateLimiter } from '../middleware/rateLimiters';
 
 const router = express.Router();
 
@@ -57,10 +59,11 @@ const updateProfileSchema = Joi.object({
   emergencyContactPhone: Joi.string().min(8).max(30).optional(),
 });
 
-router.post('/register', validate(registerSchema), registerHandler);
-router.post('/login', validate(loginSchema), loginHandler);
+router.post('/register', authRateLimiter, validate(registerSchema), registerHandler);
+router.post('/login', authRateLimiter, validate(loginSchema), loginHandler);
 router.post('/refresh', validate(refreshSchema), refreshHandler);
 router.get('/me', authenticate, meHandler);
+router.post('/premium/activate', authenticate, activatePremiumHandler);
 router.patch('/password', authenticate, validate(changePasswordSchema), changePasswordHandler);
 router.patch('/profile', authenticate, validate(updateProfileSchema), updateProfileHandler);
 router.post('/profile-picture', authenticate, uploadProfilePicture, updateProfilePictureHandler);

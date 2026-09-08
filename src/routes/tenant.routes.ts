@@ -2,7 +2,14 @@ import express from 'express';
 import Joi from 'joi';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
-import { historyHandler, meHandler, notificationsHandler, scoreHandler } from '../controllers/tenant.controller';
+import {
+  getPassportLinkHandler,
+  historyHandler,
+  meHandler,
+  notificationsHandler,
+  revokePassportLinkHandler,
+  scoreHandler,
+} from '../controllers/tenant.controller';
 import { listMineHandler, reportHandler } from '../controllers/maintenance.controller';
 import { uploadMaintenancePhoto } from '../middleware/upload';
 
@@ -20,6 +27,8 @@ router.get('/me', meHandler);
 router.get('/history', historyHandler);
 router.get('/notifications', notificationsHandler);
 router.get('/score', scoreHandler);
+router.get('/passport/link', getPassportLinkHandler);
+router.delete('/passport/link', revokePassportLinkHandler);
 router.post('/maintenance', uploadMaintenancePhoto, validate(reportIssueSchema), reportHandler);
 router.get('/maintenance', listMineHandler);
 

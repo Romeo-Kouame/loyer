@@ -55,11 +55,24 @@ describe('POST /api/v1/properties', () => {
     const response = await request(app)
       .post('/api/v1/properties')
       .set('Authorization', `Bearer ${landlordToken}`)
-      .send({ address: '1 Rue Test Properties Suite, Abidjan', numberOfApartments: 3 });
+      .send({
+        address: '1 Rue Test Properties Suite, Abidjan',
+        numberOfApartments: 3,
+        propertyType: 'Appartement',
+        surfaceArea: 85,
+        bedroomCount: 3,
+        bathroomCount: 2,
+        monthlyRent: 250000,
+      });
 
     expect(response.status).toBe(201);
     expect(response.body.data.address).toBe('1 Rue Test Properties Suite, Abidjan');
     expect(response.body.data.numberOfApartments).toBe(3);
+    expect(Number(response.body.data.surfaceArea)).toBe(85);
+    expect(response.body.data.propertyType).toBe('Appartement');
+    expect(Number(response.body.data.bedroomCount)).toBe(3);
+    expect(Number(response.body.data.bathroomCount)).toBe(2);
+    expect(Number(response.body.data.monthlyRent)).toBe(250000);
   });
 
   it('rejects tenants', async () => {

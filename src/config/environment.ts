@@ -43,6 +43,13 @@ export const config = {
     maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
   },
 
+  // Tighter limit for brute-forceable/abusable endpoints (login, registration,
+  // payment initiation), on top of the global limiter above.
+  authRateLimit: {
+    windowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS || '900000'),
+    maxRequests: parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS || '10'),
+  },
+
   rent: {
     gracePeriodDays: parseInt(process.env.RENT_GRACE_PERIOD_DAYS || '5'),
   },

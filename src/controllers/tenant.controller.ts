@@ -1,5 +1,6 @@
 import express from 'express';
 import * as tenantService from '../services/tenant.service';
+import * as passportService from '../services/passport.service';
 
 export async function meHandler(req: express.Request, res: express.Response): Promise<void> {
   const overview = await tenantService.getMyOverview(req.user!.userId);
@@ -22,4 +23,14 @@ export async function notificationsHandler(req: express.Request, res: express.Re
 export async function scoreHandler(req: express.Request, res: express.Response): Promise<void> {
   const score = await tenantService.getMyScore(req.user!.userId);
   res.status(200).json({ success: true, data: score, timestamp: new Date() });
+}
+
+export async function getPassportLinkHandler(req: express.Request, res: express.Response): Promise<void> {
+  const token = await passportService.getOrCreateShareToken(req.user!.userId);
+  res.status(200).json({ success: true, data: { token }, timestamp: new Date() });
+}
+
+export async function revokePassportLinkHandler(req: express.Request, res: express.Response): Promise<void> {
+  await passportService.revokeShareToken(req.user!.userId);
+  res.status(200).json({ success: true, data: { revoked: true }, timestamp: new Date() });
 }

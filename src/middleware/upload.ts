@@ -90,3 +90,4 @@ export const uploadKycDocument = buildUploader('kyc', 'document');
 export const uploadPropertyVerificationDocument = buildUploader('properties', 'document');
 export const uploadMaintenancePhoto = buildUploader('maintenance', 'photo');
 export const uploadProfilePicture = buildUploader('avatars', 'photo');
+export const uploadPropertyPhoto = buildUploader('property-photos', 'photo');

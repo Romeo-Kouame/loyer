@@ -1,4 +1,45 @@
 import { sendEmail } from '../utils/email';
+import { logger } from '../utils/logger';
+import {
+  countUnreadNotifications,
+  createNotification,
+  listNotificationsForUser,
+  markAllNotificationsRead,
+  markNotificationRead,
+  NotificationRecord,
+} from '../repositories/notification.repository';
+
+// Best-effort, same philosophy as sendEmail: an in-app notification failing
+// to write must never break the business action it's attached to.
+export async function createInAppNotification(params: {
+  userId: string;
+  type: string;
+  title: string;
+  body?: string;
+  propertyId?: string;
+}): Promise<void> {
+  try {
+    await createNotification(params);
+  } catch (err) {
+    logger.warn(`Failed to create in-app notification for user ${params.userId}: ${err}`);
+  }
+}
+
+export async function listMyNotifications(userId: string): Promise<NotificationRecord[]> {
+  return listNotificationsForUser(userId);
+}
+
+export async function getUnreadNotificationCount(userId: string): Promise<number> {
+  return countUnreadNotifications(userId);
+}
+
+export async function markNotificationAsRead(id: string, userId: string): Promise<void> {
+  await markNotificationRead(id, userId);
+}
+
+export async function markAllNotificationsAsRead(userId: string): Promise<void> {
+  await markAllNotificationsRead(userId);
+}
 
 export async function notifyPaymentConfirmed(params: {
   tenantEmail: string;

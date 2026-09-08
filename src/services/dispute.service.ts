@@ -10,7 +10,7 @@ import { findPropertyById } from '../repositories/property.repository';
 import { findUserById } from '../repositories/user.repository';
 import { createRefund } from '../repositories/refund.repository';
 import { cancelPayoutForRefund, holdPayoutForDispute, resumePayoutAfterDispute } from './payout.service';
-import { notifyDisputeResolved } from './notification.service';
+import { createInAppNotification, notifyDisputeResolved } from './notification.service';
 import { logAction } from './audit.service';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import { RequestContext } from '../types';
@@ -109,6 +109,14 @@ export async function resolveDispute(
       propertyAddress: property.address,
       resolution: params.resolution,
       notes: params.notes,
+    });
+
+    await createInAppNotification({
+      userId: landlord.id,
+      type: 'dispute_resolved',
+      title: 'Litige résolu',
+      body: `Le litige sur un paiement pour ${property.address} a été ${params.resolution === 'confirmed' ? 'validé' : 'remboursé'}.`,
+      propertyId: property.id,
     });
   }
 

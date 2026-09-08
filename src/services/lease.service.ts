@@ -12,6 +12,7 @@ import {
   LeaseWithTenant,
   sumConfirmedPaymentsForLease,
 } from '../repositories/lease.repository';
+import { listConfirmedPaymentDatesForLease } from '../repositories/payment.repository';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../utils/errors';
 import { RequestContext } from '../types';
 import { logAction } from './audit.service';
@@ -266,10 +267,55 @@ export async function getPropertyArrears(params: {
   return entries.sort((a, b) => b.daysOverdue - a.daysOverdue);
 }
 
+export type PaymentTrend = 'improving' | 'stable' | 'worsening' | 'insufficient_data';
+
+// Flags a tenant whose payment cadence is drifting later month over month -
+// e.g. paying every 30 days, then 33, then 38 - before that drift actually
+// crosses into a missed/late payment. This looks at the gap between
+// consecutive confirmed payments rather than due dates, so it needs no
+// extra schema: three or more confirmed payments are enough to see a trend.
+// A one-day tolerance absorbs weekend/processing jitter so it doesn't read
+// as a trend in either direction.
+export function computePaymentTrend(confirmedPaymentDates: Date[]): PaymentTrend {
+  if (confirmedPaymentDates.length < 3) {
+    return 'insufficient_data';
+  }
+
+  const sorted = [...confirmedPaymentDates].sort((a, b) => a.getTime() - b.getTime());
+  const gaps: number[] = [];
+  for (let i = 1; i < sorted.length; i++) {
+    gaps.push(daysBetween(sorted[i - 1], sorted[i]));
+  }
+
+  const recentGaps = gaps.slice(-3);
+  const TOLERANCE_DAYS = 1;
+  let isIncreasing = true;
+  let isDecreasing = true;
+  for (let i = 1; i < recentGaps.length; i++) {
+    if (recentGaps[i] <= recentGaps[i - 1] + TOLERANCE_DAYS) isIncreasing = false;
+    if (recentGaps[i] >= recentGaps[i - 1] - TOLERANCE_DAYS) isDecreasing = false;
+  }
+
+  if (isIncreasing) return 'worsening';
+  if (isDecreasing) return 'improving';
+  return 'stable';
+}
+
+export interface LeaseWithTenantAndTrend extends LeaseWithTenant {
+  paymentTrend: PaymentTrend;
+}
+
 export async function listActiveTenantsForProperty(params: {
   propertyId: string;
   landlordId: string;
-}): Promise<LeaseWithTenant[]> {
+}): Promise<LeaseWithTenantAndTrend[]> {
   await assertOwnsProperty(params.propertyId, params.landlordId);
-  return findActiveLeasesForProperty(params.propertyId);
+  const leases = await findActiveLeasesForProperty(params.propertyId);
+
+  return Promise.all(
+    leases.map(async (lease) => ({
+      ...lease,
+      paymentTrend: computePaymentTrend(await listConfirmedPaymentDatesForLease(lease.id)),
+    }))
+  );
 }

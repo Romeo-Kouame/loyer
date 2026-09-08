@@ -46,6 +46,45 @@ export async function updateStatusHandler(req: express.Request, res: express.Res
   res.status(200).json({ success: true, data: request, timestamp: new Date() });
 }
 
+export async function pendingCountHandler(req: express.Request, res: express.Response): Promise<void> {
+  const count = await maintenanceService.countPendingForLandlord(req.user!.userId);
+  res.status(200).json({ success: true, data: { count }, timestamp: new Date() });
+}
+
+export async function updateSeverityHandler(req: express.Request, res: express.Response): Promise<void> {
+  const request = await maintenanceService.updateSeverity(
+    {
+      requestId: req.params.id,
+      landlordId: req.user!.userId,
+      severity: req.body.severity,
+    },
+    contextFrom(req)
+  );
+
+  res.status(200).json({ success: true, data: request, timestamp: new Date() });
+}
+
+export async function listCommentsHandler(req: express.Request, res: express.Response): Promise<void> {
+  const comments = await maintenanceService.listComments({
+    requestId: req.params.id,
+    userId: req.user!.userId,
+    role: req.user!.role,
+  });
+
+  res.status(200).json({ success: true, data: comments, timestamp: new Date() });
+}
+
+export async function addCommentHandler(req: express.Request, res: express.Response): Promise<void> {
+  const comments = await maintenanceService.addComment({
+    requestId: req.params.id,
+    userId: req.user!.userId,
+    role: req.user!.role,
+    body: req.body.body,
+  });
+
+  res.status(201).json({ success: true, data: comments, timestamp: new Date() });
+}
+
 export async function photoHandler(req: express.Request, res: express.Response): Promise<void> {
   const { path, mimeType } = await maintenanceService.getPhotoPath({
     requestId: req.params.id,

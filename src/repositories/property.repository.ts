@@ -7,6 +7,11 @@ export interface PropertyRecord {
   ownerId: string;
   address: string;
   numberOfApartments: number;
+  propertyType: string | null;
+  surfaceArea: number | null;
+  bedroomCount: number | null;
+  bathroomCount: number | null;
+  monthlyRent: number;
   verificationStatus: PropertyVerificationStatus;
   verificationDocumentPath: string | null;
   verificationDocumentMimeType: string | null;
@@ -15,7 +20,8 @@ export interface PropertyRecord {
   verificationRejectionReason: string | null;
 }
 
-const PROPERTY_COLUMNS = `id, "ownerId", address, "numberOfApartments", "verificationStatus",
+const PROPERTY_COLUMNS = `id, "ownerId", address, "numberOfApartments", "propertyType", "surfaceArea",
+  "bedroomCount", "bathroomCount", "monthlyRent", "verificationStatus",
   "verificationDocumentPath", "verificationDocumentMimeType", "verificationSubmittedAt",
   "verificationReviewedAt", "verificationRejectionReason"`;
 
@@ -31,12 +37,62 @@ export async function createProperty(params: {
   ownerId: string;
   address: string;
   numberOfApartments: number;
+  propertyType?: string;
+  surfaceArea?: number;
+  bedroomCount?: number;
+  bathroomCount?: number;
+  monthlyRent?: number;
 }): Promise<PropertyRecord> {
   const result = await pool.query<PropertyRecord>(
-    `INSERT INTO "properties" ("ownerId", address, "numberOfApartments")
-     VALUES ($1, $2, $3)
+    `INSERT INTO "properties" ("ownerId", address, "numberOfApartments", "propertyType", "surfaceArea", "bedroomCount", "bathroomCount", "monthlyRent")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING ${PROPERTY_COLUMNS}`,
-    [params.ownerId, params.address, params.numberOfApartments]
+    [
+      params.ownerId,
+      params.address,
+      params.numberOfApartments,
+      params.propertyType ?? null,
+      params.surfaceArea ?? null,
+      params.bedroomCount ?? null,
+      params.bathroomCount ?? null,
+      params.monthlyRent ?? 0,
+    ]
+  );
+  return result.rows[0];
+}
+
+export interface UpdatePropertyParams {
+  address?: string;
+  numberOfApartments?: number;
+  propertyType?: string;
+  surfaceArea?: number;
+  bedroomCount?: number;
+  bathroomCount?: number;
+  monthlyRent?: number;
+}
+
+export async function updateProperty(id: string, params: UpdatePropertyParams): Promise<PropertyRecord> {
+  const result = await pool.query<PropertyRecord>(
+    `UPDATE "properties"
+     SET address = COALESCE($2, address),
+         "numberOfApartments" = COALESCE($3, "numberOfApartments"),
+         "propertyType" = COALESCE($4, "propertyType"),
+         "surfaceArea" = COALESCE($5, "surfaceArea"),
+         "bedroomCount" = COALESCE($6, "bedroomCount"),
+         "bathroomCount" = COALESCE($7, "bathroomCount"),
+         "monthlyRent" = COALESCE($8, "monthlyRent")
+     WHERE id = $1
+     RETURNING ${PROPERTY_COLUMNS}`,
+    [
+      id,
+      params.address ?? null,
+      params.numberOfApartments ?? null,
+      params.propertyType ?? null,
+      params.surfaceArea ?? null,
+      params.bedroomCount ?? null,
+      params.bathroomCount ?? null,
+      params.monthlyRent ?? null,
+    ]
   );
   return result.rows[0];
 }

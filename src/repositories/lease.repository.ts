@@ -21,6 +21,11 @@ export interface LeaseRecord {
 export interface LeaseWithProperty extends LeaseRecord {
   address: string;
   numberOfApartments: number;
+  propertyType: string | null;
+  surfaceArea: number | null;
+  bedroomCount: number | null;
+  bathroomCount: number | null;
+  monthlyRent: number;
 }
 
 const LEASE_COLUMNS = `id, "propertyId", "tenantId", status, "unitLabel", "rentAmount",
@@ -91,11 +96,20 @@ export async function endLease(id: string): Promise<LeaseRecord> {
   return result.rows[0];
 }
 
+export async function findEarliestLeaseDateForTenant(tenantId: string): Promise<Date | null> {
+  const result = await pool.query<{ earliest: Date | null }>(
+    `SELECT MIN("createdAt") AS earliest FROM "leases" WHERE "tenantId" = $1`,
+    [tenantId]
+  );
+  return result.rows[0]?.earliest ?? null;
+}
+
 export async function findActivePropertiesForTenant(tenantId: string): Promise<LeaseWithProperty[]> {
   const result = await pool.query<LeaseWithProperty>(
     `SELECT l.id, l."propertyId", l."tenantId", l.status, l."unitLabel", l."rentAmount", l."moveInDate", l."installmentsAllowed",
             l."depositAmount", l."depositPaid", l."advanceRentAmount", l."advanceRentPaid", l."createdAt",
-            p.address, p."numberOfApartments"
+            p.address, p."numberOfApartments", p."propertyType", p."surfaceArea", p."bedroomCount",
+            p."bathroomCount", p."monthlyRent"
      FROM "leases" l
      JOIN "properties" p ON p.id = l."propertyId"
      WHERE l."tenantId" = $1 AND l.status = 'active' AND p."deletedAt" IS NULL

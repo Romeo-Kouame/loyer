@@ -2,6 +2,7 @@ export interface JwtPayload {
   userId: string;
   email: string;
   role: string;
+  isPremium?: boolean;
 }
 
 // Passed explicitly from controllers into services that need to record an
