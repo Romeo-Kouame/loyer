@@ -3,6 +3,7 @@ import Joi from 'joi';
 import { authenticate, authorize } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import {
+  landlordArrearsHandler,
   landlordDashboardHandler,
   landlordRecentPaymentsHandler,
   landlordRevenueHistoryHandler,
@@ -34,6 +35,7 @@ router.use(authenticate, authorize('landlord'));
 router.get('/dashboard', landlordDashboardHandler);
 router.get('/dashboard/revenue-history', landlordRevenueHistoryHandler);
 router.get('/dashboard/recent-payments', landlordRecentPaymentsHandler);
+router.get('/dashboard/arrears', landlordArrearsHandler);
 router.get('/maintenance', listForLandlordHandler);
 router.get('/maintenance/pending-count', pendingCountHandler);
 router.patch('/maintenance/:id', validate(updateStatusSchema), updateStatusHandler);

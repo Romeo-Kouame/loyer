@@ -7,6 +7,7 @@ import {
   findActiveLease,
   findActiveLeaseByUnit,
   findActiveLeasesForProperty,
+  findAllActiveLeasesForLandlordWithDetails,
   findLeaseById,
   LeaseRecord,
   LeaseWithTenant,
@@ -255,6 +256,35 @@ export async function getPropertyArrears(params: {
         tenantName: lease.tenantName,
         tenantEmail: lease.tenantEmail,
         unitLabel: lease.unitLabel,
+        rentAmount: Number(lease.rentAmount),
+        balance: balance.balance,
+        daysOverdue: balance.daysOverdue,
+        isLate: balance.isLate,
+        currentDueDate: balance.currentDueDate,
+      });
+    }
+  }
+
+  return entries.sort((a, b) => b.daysOverdue - a.daysOverdue);
+}
+
+export interface LandlordArrearsEntry extends ArrearsEntry {
+  propertyAddress: string;
+}
+
+export async function getLandlordArrears(landlordId: string): Promise<LandlordArrearsEntry[]> {
+  const leases = await findAllActiveLeasesForLandlordWithDetails(landlordId);
+
+  const entries: LandlordArrearsEntry[] = [];
+  for (const lease of leases) {
+    const balance = await getLeaseBalance(lease.id);
+    if (balance.balance > 0) {
+      entries.push({
+        leaseId: lease.id,
+        tenantName: lease.tenantName,
+        tenantEmail: lease.tenantEmail,
+        unitLabel: lease.unitLabel,
+        propertyAddress: lease.address,
         rentAmount: Number(lease.rentAmount),
         balance: balance.balance,
         daysOverdue: balance.daysOverdue,

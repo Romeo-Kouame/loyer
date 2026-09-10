@@ -38,8 +38,11 @@ export async function getLandlordDashboard(landlordId: string): Promise<Landlord
   };
 }
 
-export async function getRevenueHistory(landlordId: string): Promise<{ month: string; total: number }[]> {
-  return monthlyRevenueForLandlord(landlordId, 6);
+export async function getRevenueHistory(
+  landlordId: string,
+  months = 6
+): Promise<{ month: string; total: number }[]> {
+  return monthlyRevenueForLandlord(landlordId, months);
 }
 
 export async function getRecentPayments(landlordId: string): Promise<RecentPaymentForLandlord[]> {
