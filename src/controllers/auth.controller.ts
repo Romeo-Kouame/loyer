@@ -25,6 +25,23 @@ export async function refreshHandler(req: express.Request, res: express.Response
   res.status(200).json({ success: true, data: tokens, timestamp: new Date() });
 }
 
+export async function forgotPasswordHandler(req: express.Request, res: express.Response): Promise<void> {
+  await authService.requestPasswordReset(req.body.email, contextFrom(req));
+  res.status(200).json({
+    success: true,
+    data: { message: 'If an account exists for this email, a reset link has been sent.' },
+    timestamp: new Date(),
+  });
+}
+
+export async function resetPasswordHandler(req: express.Request, res: express.Response): Promise<void> {
+  await authService.resetPassword(
+    { token: req.body.token, newPassword: req.body.newPassword },
+    contextFrom(req)
+  );
+  res.status(200).json({ success: true, data: { updated: true }, timestamp: new Date() });
+}
+
 export async function meHandler(req: express.Request, res: express.Response): Promise<void> {
   const user = await authService.getCurrentUser(req.user!.userId);
   res.status(200).json({ success: true, data: user, timestamp: new Date() });

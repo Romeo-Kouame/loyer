@@ -37,6 +37,20 @@ export const config = {
   cors: {
     origin: process.env.CORS_ORIGIN || 'http://localhost:3001',
   },
+
+  // Used to build the link sent in "forgot password" emails. Defaults to the
+  // same origin as CORS_ORIGIN since that's the frontend in local dev.
+  frontend: {
+    url: process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3001',
+  },
+
+  redis: {
+    // Optional. Backs the rate limiters with a store shared across all
+    // instances - without it they fall back to in-memory, which only works
+    // correctly for a single long-running process (fine for local dev, not
+    // for Vercel's serverless instances).
+    url: process.env.REDIS_URL || '',
+  },
   
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'),

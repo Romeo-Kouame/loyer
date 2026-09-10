@@ -3,11 +3,13 @@ import Joi from 'joi';
 import {
   activatePremiumHandler,
   changePasswordHandler,
+  forgotPasswordHandler,
   loginHandler,
   meHandler,
   profilePictureHandler,
   refreshHandler,
   registerHandler,
+  resetPasswordHandler,
   updateProfileHandler,
   updateProfilePictureHandler,
 } from '../controllers/auth.controller';
@@ -33,6 +35,15 @@ const loginSchema = Joi.object({
 
 const refreshSchema = Joi.object({
   refreshToken: Joi.string().required(),
+});
+
+const forgotPasswordSchema = Joi.object({
+  email: Joi.string().email().required(),
+});
+
+const resetPasswordSchema = Joi.object({
+  token: Joi.string().required(),
+  newPassword: Joi.string().min(8).required(),
 });
 
 const changePasswordSchema = Joi.object({
@@ -62,6 +73,8 @@ const updateProfileSchema = Joi.object({
 router.post('/register', authRateLimiter, validate(registerSchema), registerHandler);
 router.post('/login', authRateLimiter, validate(loginSchema), loginHandler);
 router.post('/refresh', validate(refreshSchema), refreshHandler);
+router.post('/forgot-password', authRateLimiter, validate(forgotPasswordSchema), forgotPasswordHandler);
+router.post('/reset-password', authRateLimiter, validate(resetPasswordSchema), resetPasswordHandler);
 router.get('/me', authenticate, meHandler);
 router.post('/premium/activate', authenticate, activatePremiumHandler);
 router.patch('/password', authenticate, validate(changePasswordSchema), changePasswordHandler);

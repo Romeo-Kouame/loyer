@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/environment';
 import { JwtPayload, RequestContext } from '../types';
@@ -14,9 +15,21 @@ import {
   UpdateProfileParams,
   UserRecord,
 } from '../repositories/user.repository';
+import {
+  createPasswordResetToken,
+  findValidPasswordResetToken,
+  invalidatePasswordResetTokensForUser,
+  markPasswordResetTokenUsed,
+} from '../repositories/passwordReset.repository';
 import { logAction } from './audit.service';
+import { sendEmail } from '../utils/email';
 
 const PASSWORD_HASH_ROUNDS = 10;
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function hashResetToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
 
 export interface AuthTokens {
   accessToken: string;
@@ -235,6 +248,59 @@ export async function getProfilePicturePath(
     throw new NotFoundError('No profile picture set');
   }
   return { path: user.profilePicturePath, mimeType: user.profilePictureMimeType };
+}
+
+export async function requestPasswordReset(email: string, context: RequestContext = {}): Promise<void> {
+  const user = await findUserByEmail(email);
+  if (!user) {
+    // Don't reveal whether the email is registered.
+    return;
+  }
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+  await createPasswordResetToken({ userId: user.id, tokenHash: hashResetToken(rawToken), expiresAt });
+
+  await logAction({
+    userId: user.id,
+    action: 'user.password_reset_requested',
+    resourceType: 'user',
+    resourceId: user.id,
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+  });
+
+  const resetLink = `${config.frontend.url}/reset-password?token=${rawToken}`;
+  await sendEmail({
+    to: user.email,
+    subject: 'Réinitialisation de votre mot de passe',
+    html: `<p>Bonjour ${user.name},</p><p>Cliquez sur le lien ci-dessous pour choisir un nouveau mot de passe. Ce lien expire dans 1 heure.</p><p><a href="${resetLink}">${resetLink}</a></p><p>Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>`,
+  });
+}
+
+export async function resetPassword(
+  params: { token: string; newPassword: string },
+  context: RequestContext = {}
+): Promise<void> {
+  const tokenHash = hashResetToken(params.token);
+  const resetToken = await findValidPasswordResetToken(tokenHash);
+  if (!resetToken) {
+    throw new UnauthorizedError('Invalid or expired reset token');
+  }
+
+  const newHash = await bcrypt.hash(params.newPassword, PASSWORD_HASH_ROUNDS);
+  await updatePassword(resetToken.userId, newHash);
+  await markPasswordResetTokenUsed(resetToken.id);
+  await invalidatePasswordResetTokensForUser(resetToken.userId);
+
+  await logAction({
+    userId: resetToken.userId,
+    action: 'user.password_reset',
+    resourceType: 'user',
+    resourceId: resetToken.userId,
+    ipAddress: context.ipAddress,
+    userAgent: context.userAgent,
+  });
 }
 
 export async function refresh(refreshToken: string): Promise<AuthTokens> {

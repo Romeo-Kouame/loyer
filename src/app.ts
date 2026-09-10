@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import 'express-async-errors';
 import { config } from './config/environment';
 import { errorHandler } from './middleware/errorHandler';
+import { createRateLimitStore } from './middleware/rateLimiters';
 import authRoutes from './routes/auth.routes';
 import paymentsRoutes from './routes/payments.routes';
 import propertiesRoutes from './routes/properties.routes';
@@ -56,6 +57,7 @@ app.use(express.urlencoded({ extended: true }));
 const limiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
   max: config.rateLimit.maxRequests,
+  store: createRateLimitStore('rl:global:'),
   message: 'Too many requests, please try again later',
 });
 app.use(limiter);
