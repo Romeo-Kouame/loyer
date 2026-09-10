@@ -24,6 +24,7 @@ const fakeImage = Buffer.from('fake-image-content');
 
 let tenantId: string;
 let tenantToken: string;
+let otherTenantId: string;
 let otherTenantToken: string;
 let adminToken: string;
 let adminUserId: string;
@@ -35,6 +36,7 @@ beforeAll(async () => {
 
   const otherRes = await request(app).post('/api/v1/auth/register').send(otherTenant);
   otherTenantToken = otherRes.body.data.tokens.accessToken;
+  otherTenantId = otherRes.body.data.user.id;
 
   const adminResult = await pool.query(
     `INSERT INTO "users" (email, phone, name, "passwordHash", role)
@@ -116,12 +118,15 @@ describe('Admin KYC review', () => {
     expect(response.status).toBe(403);
   });
 
-  it('lists pending submissions', async () => {
+  it('lists pending submissions, excluding users who never submitted anything', async () => {
     const response = await request(app).get('/api/v1/admin/kyc').set('Authorization', `Bearer ${adminToken}`);
 
     expect(response.status).toBe(200);
     const ids = response.body.data.users.map((u: { id: string }) => u.id);
     expect(ids).toContain(tenantId);
+    // otherTenant registered but never touched KYC - still sits at the
+    // default 'pending' status, so it must not show up as awaiting review.
+    expect(ids).not.toContain(otherTenantId);
   });
 
   it('approves a submission', async () => {

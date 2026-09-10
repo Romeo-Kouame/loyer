@@ -234,7 +234,11 @@ export async function listUsersByKycStatus(params: {
   limit: number;
   offset: number;
 }): Promise<{ users: UserRecord[]; total: number }> {
-  const conditions = ['"deletedAt" IS NULL'];
+  // Every user defaults to kycStatus 'pending' at registration, whether or
+  // not they've ever touched KYC - without this, the admin review queue
+  // would include the entire unverified user base instead of just the
+  // submissions actually awaiting a decision.
+  const conditions = ['"deletedAt" IS NULL', '"kycSubmittedAt" IS NOT NULL'];
   const values: unknown[] = [];
 
   if (params.status) {

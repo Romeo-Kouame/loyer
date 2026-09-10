@@ -14,3 +14,8 @@ export async function listUsersHandler(req: express.Request, res: express.Respon
   });
   res.status(200).json({ success: true, data: result, timestamp: new Date() });
 }
+
+export async function getUserDetailHandler(req: express.Request, res: express.Response): Promise<void> {
+  const result = await adminService.getUserDetail(req.params.id);
+  res.status(200).json({ success: true, data: result, timestamp: new Date() });
+}

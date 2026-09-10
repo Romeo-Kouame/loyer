@@ -7,6 +7,7 @@ export async function listHandler(req: express.Request, res: express.Response): 
     pageSize: req.query.pageSize ? Number(req.query.pageSize) : undefined,
     userId: typeof req.query.userId === 'string' ? req.query.userId : undefined,
     action: typeof req.query.action === 'string' ? req.query.action : undefined,
+    email: typeof req.query.email === 'string' ? req.query.email : undefined,
   });
 
   res.status(200).json({ success: true, data: result, timestamp: new Date() });

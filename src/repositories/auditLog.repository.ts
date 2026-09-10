@@ -3,6 +3,8 @@ import { pool } from '../config/database';
 export interface AuditLogRecord {
   id: string;
   userId: string | null;
+  userName: string | null;
+  userEmail: string | null;
   action: string;
   resourceType: string | null;
   resourceId: string | null;
@@ -43,23 +45,28 @@ export async function listAuditLogs(params: {
   offset: number;
   userId?: string;
   action?: string;
+  email?: string;
 }): Promise<{ logs: AuditLogRecord[]; total: number }> {
   const conditions: string[] = [];
   const values: unknown[] = [];
 
   if (params.userId) {
     values.push(params.userId);
-    conditions.push(`"userId" = $${values.length}`);
+    conditions.push(`al."userId" = $${values.length}`);
   }
   if (params.action) {
-    values.push(params.action);
-    conditions.push(`action = $${values.length}`);
+    values.push(`%${params.action}%`);
+    conditions.push(`al.action ILIKE $${values.length}`);
+  }
+  if (params.email) {
+    values.push(`%${params.email}%`);
+    conditions.push(`u.email ILIKE $${values.length}`);
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
   const countResult = await pool.query<{ count: string }>(
-    `SELECT COUNT(*) AS count FROM "audit_logs" ${whereClause}`,
+    `SELECT COUNT(*) AS count FROM "audit_logs" al LEFT JOIN "users" u ON u.id = al."userId" ${whereClause}`,
     values
   );
 
@@ -67,9 +74,12 @@ export async function listAuditLogs(params: {
   values.push(params.offset);
 
   const logsResult = await pool.query<AuditLogRecord>(
-    `SELECT id, "userId", action, "resourceType", "resourceId", metadata, "ipAddress", "userAgent", "createdAt"
-     FROM "audit_logs" ${whereClause}
-     ORDER BY "createdAt" DESC
+    `SELECT al.id, al."userId", u.name AS "userName", u.email AS "userEmail", al.action,
+            al."resourceType", al."resourceId", al.metadata, al."ipAddress", al."userAgent", al."createdAt"
+     FROM "audit_logs" al
+     LEFT JOIN "users" u ON u.id = al."userId"
+     ${whereClause}
+     ORDER BY al."createdAt" DESC
      LIMIT $${values.length - 1} OFFSET $${values.length}`,
     values
   );

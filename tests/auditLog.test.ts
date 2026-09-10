@@ -56,15 +56,37 @@ describe('Audit logging', () => {
     expect(actions).toContain('user.login_failed');
   });
 
-  it('filters by action', async () => {
+  it('filters by action (partial match)', async () => {
+    const response = await request(app)
+      .get('/api/v1/admin/audit-logs')
+      .query({ userId: tenantId, action: 'registered' })
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.logs).toHaveLength(1);
+    expect(response.body.data.logs[0].action).toBe('user.registered');
+  });
+
+  it('resolves the acting user\'s name and email', async () => {
     const response = await request(app)
       .get('/api/v1/admin/audit-logs')
       .query({ userId: tenantId, action: 'user.registered' })
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(response.status).toBe(200);
+    expect(response.body.data.logs[0].userName).toBe(tenant.name);
+    expect(response.body.data.logs[0].userEmail).toBe(tenant.email);
+  });
+
+  it('filters by the acting user\'s email', async () => {
+    const response = await request(app)
+      .get('/api/v1/admin/audit-logs')
+      .query({ email: tenant.email, action: 'user.registered' })
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(response.status).toBe(200);
     expect(response.body.data.logs).toHaveLength(1);
-    expect(response.body.data.logs[0].action).toBe('user.registered');
+    expect(response.body.data.logs[0].userEmail).toBe(tenant.email);
   });
 
   it('rejects non-admins', async () => {

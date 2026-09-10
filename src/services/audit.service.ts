@@ -11,7 +11,13 @@ export async function logAction(entry: AuditLogEntry): Promise<void> {
   }
 }
 
-export async function listAuditLogs(params: { page?: number; pageSize?: number; userId?: string; action?: string }) {
+export async function listAuditLogs(params: {
+  page?: number;
+  pageSize?: number;
+  userId?: string;
+  action?: string;
+  email?: string;
+}) {
   const pageSize = Math.min(Math.max(params.pageSize ?? 50, 1), 200);
   const page = Math.max(params.page ?? 1, 1);
   const offset = (page - 1) * pageSize;
@@ -21,6 +27,7 @@ export async function listAuditLogs(params: { page?: number; pageSize?: number; 
     offset,
     userId: params.userId,
     action: params.action,
+    email: params.email,
   });
 
   return { logs, total, page, pageSize };

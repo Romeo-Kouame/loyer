@@ -97,3 +97,55 @@ export async function listAllUsers(params: {
 
   return { users: usersResult.rows, total: Number(countResult.rows[0].count) };
 }
+
+export interface AdminUserDetail {
+  id: string;
+  email: string;
+  phone: string;
+  name: string;
+  role: 'landlord' | 'tenant' | 'admin';
+  isPremium: boolean;
+  kycStatus: string;
+  kycSubmittedAt: Date | null;
+  kycReviewedAt: Date | null;
+  kycRejectionReason: string | null;
+  hasKycDocument: boolean;
+  payoutProvider: string | null;
+  payoutPhoneNumber: string | null;
+  emailRemindersEnabled: boolean;
+  hasProfilePicture: boolean;
+  firstName: string | null;
+  lastName: string | null;
+  dateOfBirth: string | null;
+  placeOfBirth: string | null;
+  nationality: string | null;
+  idDocumentType: string | null;
+  idDocumentNumber: string | null;
+  activitySector: string | null;
+  profession: string | null;
+  secondPhone: string | null;
+  currentAddress: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  createdAt: Date;
+}
+
+// A separate, admin-only column list (never selects passwordHash, and turns
+// the file-path columns into booleans) rather than reusing the shared
+// user.repository helpers, so a future change to the "my own profile" shape
+// can't accidentally change what this exposes to admins, or vice versa.
+export async function findUserDetailById(userId: string): Promise<AdminUserDetail | null> {
+  const result = await pool.query<AdminUserDetail>(
+    `SELECT id, email, phone, name, role, "isPremium", "kycStatus", "kycSubmittedAt", "kycReviewedAt", "kycRejectionReason",
+            ("kycDocumentPath" IS NOT NULL) AS "hasKycDocument",
+            "payoutProvider", "payoutPhoneNumber", "emailRemindersEnabled",
+            ("profilePicturePath" IS NOT NULL) AS "hasProfilePicture",
+            "firstName", "lastName", "dateOfBirth", "placeOfBirth", "nationality", "idDocumentType", "idDocumentNumber",
+            "activitySector", "profession", "secondPhone", "currentAddress", "emergencyContactName", "emergencyContactPhone",
+            "createdAt"
+     FROM "users"
+     WHERE id = $1 AND "deletedAt" IS NULL`,
+    [userId]
+  );
+  return result.rows[0] ?? null;
+}
