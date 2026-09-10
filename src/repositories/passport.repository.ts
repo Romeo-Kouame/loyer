@@ -8,7 +8,7 @@ export interface PassportTokenRecord {
   revokedAt: Date | null;
 }
 
-const COLUMNS = `id, "tenantId", token, "createdAt", "revokedAt"`;
+const COLUMNS = 'id, "tenantId", token, "createdAt", "revokedAt"';
 
 export async function findActivePassportToken(tenantId: string): Promise<PassportTokenRecord | null> {
   const result = await pool.query<PassportTokenRecord>(

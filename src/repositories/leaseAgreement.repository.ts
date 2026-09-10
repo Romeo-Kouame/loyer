@@ -30,7 +30,7 @@ export interface LeaseAgreementSignatureRecord {
 const AGREEMENT_COLUMNS = `id, "leaseId", "propertyAddress", "unitLabel", "rentAmount", "depositAmount",
   "advanceRentAmount", "installmentsAllowed", "moveInDate", "landlordName", "tenantName", "createdAt"`;
 
-const SIGNATURE_COLUMNS = `id, "agreementId", "userId", role, "fullNameTyped", "ipAddress", "signedAt"`;
+const SIGNATURE_COLUMNS = 'id, "agreementId", "userId", role, "fullNameTyped", "ipAddress", "signedAt"';
 
 export async function findAgreementByLeaseId(leaseId: string): Promise<LeaseAgreementRecord | null> {
   const result = await pool.query<LeaseAgreementRecord>(

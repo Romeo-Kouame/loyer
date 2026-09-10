@@ -98,7 +98,7 @@ export async function endLease(id: string): Promise<LeaseRecord> {
 
 export async function findEarliestLeaseDateForTenant(tenantId: string): Promise<Date | null> {
   const result = await pool.query<{ earliest: Date | null }>(
-    `SELECT MIN("createdAt") AS earliest FROM "leases" WHERE "tenantId" = $1`,
+    'SELECT MIN("createdAt") AS earliest FROM "leases" WHERE "tenantId" = $1',
     [tenantId]
   );
   return result.rows[0]?.earliest ?? null;

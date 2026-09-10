@@ -9,7 +9,7 @@ export interface PropertyPhotoRecord {
   createdAt: Date;
 }
 
-const PHOTO_COLUMNS = `id, "propertyId", path, "mimeType", position, "createdAt"`;
+const PHOTO_COLUMNS = 'id, "propertyId", path, "mimeType", position, "createdAt"';
 
 export async function addPropertyPhoto(params: {
   propertyId: string;
@@ -17,7 +17,7 @@ export async function addPropertyPhoto(params: {
   mimeType: string;
 }): Promise<PropertyPhotoRecord> {
   const countResult = await pool.query<{ count: string }>(
-    `SELECT COUNT(*) AS count FROM "property_photos" WHERE "propertyId" = $1`,
+    'SELECT COUNT(*) AS count FROM "property_photos" WHERE "propertyId" = $1',
     [params.propertyId]
   );
   const position = Number(countResult.rows[0].count);
@@ -61,5 +61,5 @@ export async function findPropertyPhotoById(id: string): Promise<PropertyPhotoRe
 }
 
 export async function deletePropertyPhoto(id: string): Promise<void> {
-  await pool.query(`DELETE FROM "property_photos" WHERE id = $1`, [id]);
+  await pool.query('DELETE FROM "property_photos" WHERE id = $1', [id]);
 }

@@ -219,7 +219,7 @@ export async function listRecentPaymentsForLandlord(
 
 export async function listConfirmedPaymentDatesForLease(leaseId: string): Promise<Date[]> {
   const result = await pool.query<{ createdAt: Date }>(
-    `SELECT "createdAt" FROM "payments" WHERE "leaseId" = $1 AND status = 'confirmed' ORDER BY "createdAt" ASC`,
+    'SELECT "createdAt" FROM "payments" WHERE "leaseId" = $1 AND status = \'confirmed\' ORDER BY "createdAt" ASC',
     [leaseId]
   );
   return result.rows.map((row) => row.createdAt);
